@@ -1,17 +1,13 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { Pool } from 'pg';
+import { Database } from '../database';
 
 export const secret = () => randomBytes(32).toString('base64url');
 export const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
 @Injectable()
-export class AuthStore implements OnModuleDestroy {
-  protected readonly database = new Pool({ connectionString: process.env.DATABASE_URL });
-
-  async onModuleDestroy() {
-    await this.database.end();
-  }
+export class AuthStore {
+  constructor(private readonly database: Database) {}
 
   async saveAttempt(state: string, verifier: string, returnTo: string) {
     await this.database.query(

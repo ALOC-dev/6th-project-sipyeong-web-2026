@@ -2,6 +2,7 @@
 
 1. Node.js 24 및 PostgreSQL을 준비한다. 저장소 루트에서 npm ci를 실행한다.
 2. 팀장이 적용할 DB를 승인하면 해당 개발 DB에 apps/api/db/001-auth.sql을 한 번 실행한다. 예를 들어 연결 문자열을 DATABASE_URL에 지정한 뒤 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/db/001-auth.sql을 실행한다.
+   학적 기능을 사용하는 브랜치에서는 이어서 apps/api/db/002-profile.sql을 한 번 적용한다.
 3. apps/api/.env.example을 같은 폴더의 .env로 복사한다. DATABASE_URL, WEB_ORIGIN, KAKAO_REDIRECT_URI, KAKAO_REST_API_KEY와 앱에 설정된 KAKAO_CLIENT_SECRET을 채운다.
 4. 카카오 앱에서 카카오 로그인을 활성화하고 KAKAO_REDIRECT_URI와 동일한 URI를 등록한다. 인증과 FE는 같은 공개 Origin을 사용한다. FE 연결 시 그 Origin의 /api 경로를 NestJS로 전달한다.
 5. npm run dev로 API를 실행한다. 브라우저에서 /api/auth/login/kakao로 이동하고, 리다이렉트 후 /api/auth/session에서 세션을 확인한다. FE 연결 전에는 콜백 이후 화면 대신 브라우저에서 세션 경로를 직접 확인한다.

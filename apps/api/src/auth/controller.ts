@@ -4,18 +4,18 @@ import type { CookieOptions, Request, Response } from 'express';
 import { KakaoClient } from './kakao';
 import { AuthStore, secret } from './store';
 
-const sessionCookie = 'sipyeong_session';
+export const sessionCookie = 'sipyeong_session';
 const flowCookie = 'sipyeong_oauth';
 const flowPath = '/api/auth/login/kakao/callback';
 
-function readCookie(request: Request, name: string) {
+export function readCookie(request: Request, name: string) {
   const entry = request.headers.cookie?.split(';').map((item) => item.trim())
     .find((item) => item.startsWith(`${name}=`));
   const value = entry?.slice(name.length + 1) ?? '';
   return /^[A-Za-z0-9_-]{43}$/.test(value) ? value : '';
 }
 
-function failure(response: Response, status: number, code: string, message: string) {
+export function failure(response: Response, status: number, code: string, message: string) {
   return response.status(status).json({
     error: { code, message, details: [] },
     meta: { requestId: randomUUID() },
@@ -53,8 +53,16 @@ function config() {
   };
 }
 
-function noCache(response: Response) {
+export function noCache(response: Response) {
   response.set('Cache-Control', 'private, no-store');
+}
+
+export function csrfMatches(request: Request, csrfToken: string) {
+  const supplied = Buffer.from(request.get('X-CSRF-Token') ?? '');
+  const expected = Buffer.from(csrfToken);
+  return URL.canParse(process.env.WEB_ORIGIN ?? '') &&
+    request.get('Origin') === new URL(process.env.WEB_ORIGIN!).origin &&
+    supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
 @Controller('auth')
@@ -125,10 +133,7 @@ export class AuthController {
     const session = token ? await this.store.session(token) : undefined;
     if (!session) return failure(response, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
 
-    const supplied = Buffer.from(request.get('X-CSRF-Token') ?? '');
-    const expected = Buffer.from(session.csrfToken);
-    if (request.get('Origin') !== settings.origin || supplied.length !== expected.length ||
-        !timingSafeEqual(supplied, expected)) {
+    if (!csrfMatches(request, session.csrfToken)) {
       return failure(response, 403, 'CSRF_INVALID', '요청을 검증할 수 없습니다.');
     }
 

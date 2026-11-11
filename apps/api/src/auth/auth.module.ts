@@ -6,5 +6,6 @@ import { AuthStore } from './store';
 @Module({
   controllers: [AuthController],
   providers: [KakaoClient, AuthStore],
+  exports: [AuthStore],
 })
 export class AuthModule {}

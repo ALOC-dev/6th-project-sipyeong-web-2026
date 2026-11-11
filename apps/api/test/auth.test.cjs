@@ -4,9 +4,9 @@ const { test } = require('node:test');
 const { PGlite } = require('@electric-sql/pglite');
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require('../dist/app.module');
-const { AuthStore } = require('../dist/auth/store');
+const { Database } = require('../dist/database');
 
-test('Kakao signup, repeat login, state replay and session logout', async (t) => {
+test('Kakao signup, profile registration and session lifecycle', async (t) => {
   process.env.DATABASE_URL = 'postgresql://test@localhost/test';
   process.env.WEB_ORIGIN = 'https://sipyeong.example';
   process.env.KAKAO_REDIRECT_URI = 'https://sipyeong.example/api/auth/login/kakao/callback';
@@ -15,11 +15,10 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   const database = new PGlite();
   t.after(() => database.close());
   await database.exec(await readFile('db/001-auth.sql', 'utf8'));
+  await database.exec(await readFile('db/002-profile.sql', 'utf8'));
 
   const app = await NestFactory.create(AppModule, { logger: false });
-  const store = app.get(AuthStore);
-  await store.database.end();
-  store.database = { query: database.query.bind(database), end: async () => {} };
+  t.mock.method(app.get(Database), 'query', database.query.bind(database));
   t.after(() => app.close());
   app.setGlobalPrefix('api');
   await app.listen(0, '127.0.0.1');
@@ -94,6 +93,56 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   assert.deepEqual((await database.query('SELECT kakao_id FROM app_users')).rows, [
     { kakao_id: '9007199254740993' },
   ]);
+
+  const profileRequest = (path, options = {}) => fetch(base + '/api/' + path, options);
+  const profileHeaders = {
+    Cookie: session2,
+    Origin: process.env.WEB_ORIGIN,
+    'X-CSRF-Token': current.csrfToken,
+    'Content-Type': 'application/json',
+  };
+  const patch = (body, headers = profileHeaders) =>
+    profileRequest('users/me/profile', { method: 'PATCH', headers, body: JSON.stringify(body) });
+  assert.equal((await profileRequest('users/me')).status, 401);
+  const before = await profileRequest('users/me', { headers: profileHeaders });
+  const empty = (await before.json()).data;
+  assert.equal(empty.profile, null);
+  assert.equal(empty.profileCompleted, false);
+
+  const departments = await profileRequest('departments?q=' + encodeURIComponent('컴퓨터'), { headers: profileHeaders });
+  const { departmentId } = (await departments.json()).data.items[0];
+  const registration = { departmentId, admissionYear: 2024, curriculumYear: 2023, studentNumber: '2024-01', expectedRevision: 0 };
+  assert.equal((await patch(registration, { ...profileHeaders, Origin: 'https://other.example' })).status, 403);
+  assert.equal((await patch({ ...registration, admissionYear: 2019 })).status, 422);
+  assert.equal((await patch({ ...registration, name: '추가 필드' })).status, 422);
+
+  const created = await patch(registration);
+  assert.equal(created.status, 200);
+  const registered = await created.json();
+  assert.equal(registered.data.profile.revision, 1);
+  assert.equal(registered.data.profile.curriculumYear, 2023);
+  assert.equal(registered.data.studentDataVersion, 1);
+  assert.equal(registered.meta.warnings[0].code, 'CURRICULUM_POLICY_UNKNOWN');
+  assert.equal((await patch(registration)).status, 409);
+  const me = await profileRequest('users/me', { headers: profileHeaders });
+  const meData = (await me.json()).data;
+  assert.equal(meData.profileCompleted, true);
+  assert.deepEqual(meData.profile, registered.data.profile);
+
+  await database.query('INSERT INTO curriculum_rules VALUES ($1, $2, $3)', [departmentId, 2024, 2023]);
+  assert.equal((await patch({ expectedRevision: 1, curriculumYear: 2024 })).status, 422);
+  const cleared = await patch({ expectedRevision: 1, studentNumber: null });
+  assert.equal(cleared.status, 200);
+  const edited = (await cleared.json()).data;
+  assert.equal(edited.profile.studentNumber, null);
+  assert.equal(edited.profile.departmentId, departmentId);
+  assert.equal(edited.studentDataVersion, 2);
+
+  const competing = await Promise.all([
+    patch({ expectedRevision: 2, studentNumber: 'first' }),
+    patch({ expectedRevision: 2, studentNumber: 'second' }),
+  ]);
+  assert.deepEqual(competing.map((response) => response.status).sort(), [200, 409]);
 
   const cancelled = await start();
   const denied = await request('login/kakao/callback?error=access_denied&state=' + cancelled.state, {
