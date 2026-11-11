@@ -15,3 +15,5 @@ npm run dev
 검증은 `npm run typecheck`, `npm test`, `npm run build`로 실행한다.
 
 팀원 작업 방법은 [협업 안내](docs/collaboration.md)를 참고한다.
+
+카카오 로그인 설정과 검증은 [인증 개발 환경](docs/kakao-auth.md)을 참고한다.
