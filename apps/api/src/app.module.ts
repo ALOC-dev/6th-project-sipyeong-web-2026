@@ -1,7 +1,5 @@
 import { Controller, Get, Module } from '@nestjs/common';
-import { AuthController } from './auth/controller';
-import { AuthStore } from './auth/store';
-import { KakaoClient } from './auth/kakao';
+import { AuthModule } from './auth/auth.module';
 
 @Controller('health')
 export class HealthController {
@@ -11,5 +9,5 @@ export class HealthController {
   }
 }
 
-@Module({ controllers: [HealthController, AuthController], providers: [AuthStore, KakaoClient] })
+@Module({ imports: [AuthModule], controllers: [HealthController] })
 export class AppModule {}

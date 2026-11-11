@@ -29,7 +29,9 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   t.mock.method(global, 'fetch', (url, options) => {
     if (url === 'https://kauth.kakao.com/oauth/token') {
       assert.equal(options.body.get('redirect_uri'), process.env.KAKAO_REDIRECT_URI);
-      exchangeCodes.push(options.body.get('code'));
+      const code = options.body.get('code');
+      exchangeCodes.push(code);
+      if (code === 'rejected') return Promise.resolve(new Response(null, { status: 400 }));
       return Promise.resolve(Response.json({ access_token: 'test-token' }));
     }
     if (url === 'https://kapi.kakao.com/v2/user/me') {
@@ -58,6 +60,14 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
 
   const invalidTarget = await request('login/kakao?returnTo=%2F%2Fevil.example');
   assert.equal(invalidTarget.status, 400);
+
+  const rejected = await start();
+  const rejectedCallback = 'login/kakao/callback?code=rejected&state=' + rejected.state;
+  const failure = await request(rejectedCallback, { headers: { Cookie: rejected.flow } });
+  assert.equal(failure.status, 302);
+  assert.equal(failure.headers.get('location'), 'https://sipyeong.example/login?reason=provider_error');
+  assert.deepEqual((await database.query('SELECT id FROM app_users')).rows, []);
+  assert.deepEqual((await database.query('SELECT user_id FROM auth_sessions')).rows, []);
 
   const first = await start();
   const callback = 'login/kakao/callback?code=signup&state=' + first.state;
@@ -90,7 +100,7 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
     headers: { Cookie: cancelled.flow },
   });
   assert.equal(denied.headers.get('location'), 'https://sipyeong.example/login?reason=cancelled');
-  assert.deepEqual(exchangeCodes, ['signup', 'login']);
+  assert.deepEqual(exchangeCodes, ['rejected', 'signup', 'login']);
 
   const expired = await start();
   await database.exec("UPDATE oauth_attempts SET expires_at = now() - interval '1 minute'");
