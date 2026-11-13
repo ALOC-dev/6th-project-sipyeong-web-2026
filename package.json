@@ -9,8 +9,10 @@
   },
   "scripts": {
     "dev": "npm run dev -w @sipyeong/api",
+    "dev:web": "npm run dev -w @sipyeong/web",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces --if-present",
+    "lint:web": "npm run lint -w @sipyeong/web"
   }
 }
