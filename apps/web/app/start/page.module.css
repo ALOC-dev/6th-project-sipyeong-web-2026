@@ -1,0 +1,168 @@
+.page {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.page :is(button, input, select) { font: inherit; }
+.page button:not(:disabled) { cursor: pointer; }
+.page :is(a, button, input, select, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+.header {
+  padding: 18px 22px 22px;
+  color: var(--hero-ink);
+  background: linear-gradient(155deg, var(--hero-start), var(--hero-end));
+}
+
+.back {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hero-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.eyebrow { margin: 0 0 6px; color: var(--hero-muted); font-size: 13px; font-weight: 600; }
+.header h1 { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -1px; }
+
+.progress {
+  height: 4px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 22%);
+}
+
+.progress i { display: block; height: 100%; background: #fff; transition: width 0.24s; }
+
+.content { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 18px 16px 28px; }
+
+.card {
+  display: grid;
+  gap: 16px;
+  padding: 20px 18px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.field { display: grid; gap: 8px; min-width: 0; }
+.field > span { color: var(--muted); font-size: 13px; font-weight: 600; }
+
+.field :is(select, input) {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.switchRow input { width: 22px; height: 22px; accent-color: var(--button-bg); }
+
+.primary {
+  margin-top: auto;
+  padding: 15px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--button-bg);
+  color: var(--on-button);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.primary:disabled, .secondary:disabled { opacity: 0.4; }
+
+.secondary {
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.segment { display: flex; padding: 4px; border-radius: 12px; background: var(--soft); }
+
+.segment button {
+  flex: 1;
+  padding: 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.segment button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgb(0 0 0 / 5%); }
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 26px 16px;
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.drop strong { font-size: 16px; }
+.drop span { margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+
+.error { margin: 0; color: var(--danger); font-size: 13px; }
+
+.picked, .courses li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picked > div, .courses li > div { display: grid; gap: 2px; min-width: 0; }
+.picked strong, .courses strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.picked span, .courses span { color: var(--muted); font-size: 13px; }
+
+.text {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.courses { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.courses li { padding: 12px 0; }
+.courses li + li { border-top: 1px solid var(--line); }
+
+.guide summary { color: var(--muted); font-size: 14px; font-weight: 600; }
+.guide ol { margin: 10px 0 0; padding-left: 20px; color: var(--ink); font-size: 14px; line-height: 1.9; }
+
+.note { margin: -4px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress i { transition: none; }
+}
