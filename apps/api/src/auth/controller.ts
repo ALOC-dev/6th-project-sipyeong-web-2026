@@ -4,11 +4,11 @@ import type { CookieOptions, Request, Response } from 'express';
 import { KakaoClient } from './kakao';
 import { AuthStore, secret } from './store';
 
-const sessionCookie = 'sipyeong_session';
+export const sessionCookie = 'sipyeong_session';
 const flowCookie = 'sipyeong_oauth';
 const flowPath = '/api/auth/login/kakao/callback';
 
-function readCookie(request: Request, name: string) {
+export function readCookie(request: Request, name: string) {
   const entry = request.headers.cookie?.split(';').map((item) => item.trim())
     .find((item) => item.startsWith(`${name}=`));
   const value = entry?.slice(name.length + 1) ?? '';
