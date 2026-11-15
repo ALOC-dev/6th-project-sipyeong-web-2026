@@ -112,9 +112,11 @@ test('Kakao signup, profile registration and session lifecycle', async (t) => {
 
   const departments = await profileRequest('departments?q=' + encodeURIComponent('컴퓨터'), { headers: profileHeaders });
   const { departmentId } = (await departments.json()).data.items[0];
+  assert.equal(departmentId, '34');
   const registration = { departmentId, admissionYear: 2024, curriculumYear: 2023, studentNumber: '2024-01', expectedRevision: 0 };
   assert.equal((await patch(registration, { ...profileHeaders, Origin: 'https://other.example' })).status, 403);
   assert.equal((await patch({ ...registration, admissionYear: 2019 })).status, 422);
+  assert.equal((await patch({ ...registration, departmentId: 34 })).status, 422);
   assert.equal((await patch({ ...registration, name: '추가 필드' })).status, 422);
 
   const created = await patch(registration);

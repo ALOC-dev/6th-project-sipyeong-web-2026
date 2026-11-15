@@ -3,9 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { csrfMatches, failure, noCache, readCookie, sessionCookie } from '../auth/controller';
 import { AuthStore } from '../auth/store';
-import { Profile, ProfilePatch, ProfileStore } from './profile.store';
+import { Profile, ProfilePatch, ProfileStore, supportedDepartmentId } from './profile.store';
 
-const departmentId = 'computer-science';
 const fields = ['departmentId', 'admissionYear', 'curriculumYear', 'studentNumber'] as const;
 
 function isYear(value: unknown): value is number {
@@ -21,7 +20,7 @@ function isProfilePatch(value: unknown): value is ProfilePatch {
 
   const { expectedRevision, admissionYear, curriculumYear, studentNumber } = patch;
   return isYear(expectedRevision) && expectedRevision >= 0 && expectedRevision <= 2_147_483_646 &&
-    (patch.departmentId === undefined || patch.departmentId === departmentId) &&
+    (patch.departmentId === undefined || patch.departmentId === supportedDepartmentId) &&
     (admissionYear === undefined || (isYear(admissionYear) && admissionYear >= 2020 && admissionYear <= 2026)) &&
     (curriculumYear === undefined || (isYear(curriculumYear) && curriculumYear >= 1900 && curriculumYear <= 9999)) &&
     (studentNumber === undefined || studentNumber === null ||
