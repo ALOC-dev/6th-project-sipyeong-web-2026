@@ -1,8 +1,9 @@
 BEGIN;
 
-CREATE TABLE app_users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  kakao_id text NOT NULL UNIQUE
+CREATE TABLE users (
+  user_id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kakao_id varchar(255) NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE oauth_attempts (
@@ -14,7 +15,7 @@ CREATE TABLE oauth_attempts (
 
 CREATE TABLE auth_sessions (
   token_hash text PRIMARY KEY,
-  user_id uuid NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  user_id integer NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   csrf_token text NOT NULL,
   expires_at timestamptz NOT NULL
 );
