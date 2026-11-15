@@ -35,14 +35,14 @@ export class AuthStore implements OnModuleDestroy {
     const token = secret();
     await this.database.query(
       `WITH account AS (
-         INSERT INTO app_users (kakao_id) VALUES ($1)
+         INSERT INTO users (kakao_id) VALUES ($1)
          ON CONFLICT (kakao_id) DO UPDATE SET kakao_id = EXCLUDED.kakao_id
-         RETURNING id
+         RETURNING user_id
        ), retired AS (
          DELETE FROM auth_sessions WHERE token_hash = $2
        )
        INSERT INTO auth_sessions (token_hash, user_id, csrf_token, expires_at)
-       SELECT $3, id, $4, now() + interval '7 days' FROM account`,
+       SELECT $3, user_id, $4, now() + interval '7 days' FROM account`,
       [kakaoId, hash(previousToken), hash(token), secret()],
     );
     return token;
@@ -54,7 +54,7 @@ export class AuthStore implements OnModuleDestroy {
       csrfToken: string;
       expiresAt: Date;
     }>(
-      `SELECT user_id AS "userId", csrf_token AS "csrfToken", expires_at AS "expiresAt"
+      `SELECT user_id::text AS "userId", csrf_token AS "csrfToken", expires_at AS "expiresAt"
        FROM auth_sessions WHERE token_hash = $1 AND expires_at > now()`,
       [hash(token)],
     );

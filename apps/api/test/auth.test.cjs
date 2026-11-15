@@ -66,7 +66,7 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   const failure = await request(rejectedCallback, { headers: { Cookie: rejected.flow } });
   assert.equal(failure.status, 302);
   assert.equal(failure.headers.get('location'), 'https://sipyeong.example/login?reason=provider_error');
-  assert.deepEqual((await database.query('SELECT id FROM app_users')).rows, []);
+  assert.deepEqual((await database.query('SELECT user_id FROM users')).rows, []);
   assert.deepEqual((await database.query('SELECT user_id FROM auth_sessions')).rows, []);
 
   const first = await start();
@@ -80,6 +80,7 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   const sessionResponse = await request('session', { headers: { Cookie: session1 } });
   assert.equal(sessionResponse.headers.get('cache-control'), 'private, no-store');
   const initial = (await sessionResponse.json()).data;
+  assert.match(initial.userId, /^[1-9]\d*$/);
 
   const second = await start();
   const loggedIn = await request('login/kakao/callback?code=login&state=' + second.state, {
@@ -91,7 +92,7 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   assert.equal((await request('session', { headers: { Cookie: session1 } })).status, 401);
   const current = (await (await request('session', { headers: { Cookie: session2 } })).json()).data;
   assert.equal(current.userId, initial.userId);
-  assert.deepEqual((await database.query('SELECT kakao_id FROM app_users')).rows, [
+  assert.deepEqual((await database.query('SELECT kakao_id FROM users')).rows, [
     { kakao_id: '9007199254740993' },
   ]);
 
