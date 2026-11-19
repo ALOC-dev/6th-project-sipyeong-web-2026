@@ -88,8 +88,8 @@ export class AcademicsStore implements OnModuleDestroy {
       `INSERT INTO student_course_records AS existing
          (user_id, semester_id, course_id, section_id, match_status, course_number_snapshot,
           course_name_snapshot, section_number_snapshot, credits, category_snapshot, grade,
-          grade_point, status, source_import_id, source_row, retake, retake_reference)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+          grade_point, grade_valid, status, source_import_id, source_row, retake, retake_reference)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        ON CONFLICT (user_id, semester_id, course_number_snapshot) DO UPDATE SET
          course_id = EXCLUDED.course_id,
          section_id = CASE WHEN EXCLUDED.status = 'completed' AND EXCLUDED.course_id = existing.course_id
@@ -104,6 +104,7 @@ export class AcademicsStore implements OnModuleDestroy {
          category_snapshot = EXCLUDED.category_snapshot,
          grade = EXCLUDED.grade,
          grade_point = EXCLUDED.grade_point,
+         grade_valid = EXCLUDED.grade_valid,
          status = EXCLUDED.status,
          source_import_id = EXCLUDED.source_import_id,
          source_row = EXCLUDED.source_row,
@@ -113,7 +114,7 @@ export class AcademicsStore implements OnModuleDestroy {
        WHERE existing.status <> 'completed' OR EXCLUDED.status = 'completed'`,
       [userId, semesterId, match.courseId, match.sectionId, match.status, row.courseNumber,
         row.courseName, row.sectionNumber, row.credits, row.category, row.grade, row.gradePoint,
-        row.status, importId, JSON.stringify(row.source), row.retake, row.retakeReference],
+        row.gradeValid, row.status, importId, JSON.stringify(row.source), row.retake, row.retakeReference],
     );
     return result.rowCount ?? 0;
   }
