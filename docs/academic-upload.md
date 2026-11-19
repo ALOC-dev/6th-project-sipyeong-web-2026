@@ -27,4 +27,4 @@ const response = await fetch('/api/academics/imports', {
 
 브라우저가 multipart 경계를 생성하므로 `Content-Type` 헤더를 직접 설정하지 않는다. 각 파일은 최대 10MB다. 성공 시 201과 `data: { batchId, parsed, saved }`가 반환된다. `parsed`는 두 파일에서 읽은 행 수이고 `saved`는 INSERT 또는 UPDATE된 행 수다. 이미 완료된 성적에 대해 PDF 갱신을 건너뛰면 수가 다를 수 있다. 만료 세션은 401, CSRF 실패는 403, 입력·파싱 오류는 400, DB에 없는 학기는 422다.
 
-API 실행 환경에 `python -m pip install -r apps/api/scripts/requirements-academic-parsers.txt`로 추출 의존성을 설치한다. 필요하면 `ACADEMIC_PYTHON`에 Python 실행 경로를 지정한다. DB에는 인증·학사 스키마와 해당 학기 행이 필요하다. 기존 학사 스키마를 사용하는 경우 `student_course_records`에 `retake`, `retake_reference` 컬럼이 있는지 확인한다.
+API 실행 환경에 `python -m pip install -r apps/api/scripts/requirements-academic-parsers.txt`로 추출 의존성을 설치한다. 필요하면 `ACADEMIC_PYTHON`에 Python 실행 경로를 지정한다. [DB 마이그레이션 안내](../apps/api/prisma/README.md)에 따라 스키마를 적용하고 해당 학기 행을 준비한다.

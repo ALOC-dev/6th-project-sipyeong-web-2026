@@ -14,7 +14,7 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
 
   const database = new PGlite();
   t.after(() => database.close());
-  await database.exec(await readFile('db/001-auth.sql', 'utf8'));
+  await database.exec(await readFile('prisma/migrations/001_auth/migration.sql', 'utf8'));
 
   const app = await NestFactory.create(AppModule, { logger: false });
   const store = app.get(AuthStore);

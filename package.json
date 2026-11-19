@@ -8,6 +8,8 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "db:migrate": "npm run db:migrate -w @sipyeong/api",
+    "db:status": "npm run db:status -w @sipyeong/api",
     "dev": "npm run dev -w @sipyeong/api",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
