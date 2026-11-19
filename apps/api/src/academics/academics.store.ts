@@ -71,6 +71,7 @@ export class AcademicsStore implements OnModuleDestroy {
       PDF에 있는 과목만 갱신: 파일에서 읽은 과목만 추가하거나 수정합니다. 
       파일에 없는 과목은 남으므로, 수강 취소를 어떤 방식으로 반영할지 따로 정합니다. 
       */
+      await client.query('UPDATE app_users SET student_data_version = student_data_version + 1 WHERE id = $1', [userId]);
       await client.query('COMMIT');
       return { batchId, parsed: documents.reduce((count, document) => count + document.records.length, 0), saved };
     } catch (error) {
