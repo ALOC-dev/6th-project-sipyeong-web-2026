@@ -1,12 +1,13 @@
 const assert = require('node:assert/strict');
-const { readFile } = require('node:fs/promises');
+const { readFile, readdir } = require('node:fs/promises');
 const { test } = require('node:test');
 const { PGlite } = require('@electric-sql/pglite');
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require('../dist/app.module');
 const { AuthStore } = require('../dist/auth/store');
+const { ProfileStore } = require('../dist/profile/profile.store');
 
-test('Kakao signup, repeat login, state replay and session logout', async (t) => {
+test('Kakao signup, profile persistence across sign-ins, state replay and session logout', async (t) => {
   process.env.DATABASE_URL = 'postgresql://test@localhost/test';
   process.env.WEB_ORIGIN = 'https://sipyeong.example';
   process.env.KAKAO_REDIRECT_URI = 'https://sipyeong.example/api/auth/login/kakao/callback';
@@ -14,12 +15,24 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
 
   const database = new PGlite();
   t.after(() => database.close());
-  await database.exec(await readFile('prisma/migrations/001_auth/migration.sql', 'utf8'));
+  const migrations = 'prisma/migrations';
+  const entries = await readdir(migrations, { withFileTypes: true });
+  for (const version of entries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort()) {
+    await database.exec(await readFile(migrations + '/' + version + '/migration.sql', 'utf8'));
+  }
 
   const app = await NestFactory.create(AppModule, { logger: false });
   const store = app.get(AuthStore);
+  const profileStore = app.get(ProfileStore);
+  const query = database.query.bind(database);
   await store.database.end();
-  store.database = { query: database.query.bind(database), end: async () => {} };
+  store.database = { query, end: async () => {} };
+  await profileStore.database.end();
+  profileStore.database = {
+    query,
+    end: async () => {},
+    connect: async () => ({ query, release: () => {} }),
+  };
   t.after(() => app.close());
   app.setGlobalPrefix('api');
   await app.listen(0, '127.0.0.1');
@@ -81,6 +94,33 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   assert.equal(sessionResponse.headers.get('cache-control'), 'private, no-store');
   const initial = (await sessionResponse.json()).data;
 
+  const profile = (sessionCookie) => fetch(base + '/api/users/me', { headers: { Cookie: sessionCookie } });
+  const unregistered = await profile(session1);
+  assert.equal(unregistered.status, 200);
+  assert.equal((await unregistered.json()).data.profileCompleted, false);
+
+  const registration = {
+    departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: 'TEST-1234',
+    volunteerHours: 12.5, languageScores: [{ examType: 'TOEIC', score: 850, takenAt: '2025-03-17' }],
+    expectedRevision: 0,
+  };
+  const registered = await fetch(base + '/api/users/me/profile', {
+    method: 'PATCH',
+    headers: {
+      Cookie: session1, Origin: process.env.WEB_ORIGIN,
+      'Content-Type': 'application/json', 'X-CSRF-Token': initial.csrfToken,
+    },
+    body: JSON.stringify(registration),
+  });
+  assert.equal(registered.status, 200);
+  const saved = (await registered.json()).data;
+  const { expectedRevision, languageScores, ...registeredFields } = registration;
+  assert.deepEqual(saved.profile, {
+    ...registeredFields,
+    languageScores: languageScores.map(score => ({ ...score, grade: null })),
+    revision: expectedRevision + 1,
+  });
+
   const second = await start();
   const loggedIn = await request('login/kakao/callback?code=login&state=' + second.state, {
     headers: { Cookie: second.flow + '; ' + session1 },
@@ -113,4 +153,23 @@ test('Kakao signup, repeat login, state replay and session logout', async (t) =>
   headers['X-CSRF-Token'] = current.csrfToken;
   assert.equal((await request('logout', { method: 'POST', headers })).status, 204);
   assert.equal((await request('session', { headers: { Cookie: session2 } })).status, 401);
+  assert.equal((await profile(session2)).status, 401);
+
+  const third = await start();
+  const reloggedIn = await request('login/kakao/callback?code=relogin&state=' + third.state, {
+    headers: { Cookie: third.flow },
+  });
+  assert.equal(reloggedIn.status, 302);
+  const session3 = cookie(reloggedIn, 'sipyeong_session');
+  assert.notEqual(session3, session2);
+  const restored = await profile(session3);
+  assert.equal(restored.status, 200);
+  const data = (await restored.json()).data;
+  assert.equal(data.userId, initial.userId);
+  assert.equal(data.profileCompleted, true);
+  assert.equal(data.studentDataVersion, saved.studentDataVersion);
+  assert.deepEqual(data.profile, saved.profile);
+  assert.deepEqual((await database.query('SELECT kakao_id FROM app_users')).rows, [
+    { kakao_id: '9007199254740993' },
+  ]);
 });
