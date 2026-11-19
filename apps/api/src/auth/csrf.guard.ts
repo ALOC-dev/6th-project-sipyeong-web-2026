@@ -11,7 +11,7 @@ export class CsrfGuard implements CanActivate {
     const expected = Buffer.from(request.academicSession?.csrfToken ?? '');
     if (!origin || !URL.canParse(origin) || request.get('Origin') !== new URL(origin).origin ||
         !expected.length || supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-      throw new ForbiddenException('요청을 검증할 수 없습니다.');
+      throw new ForbiddenException({ code: 'CSRF_INVALID', message: '요청을 검증할 수 없습니다.' });
     }
     return true;
   }
