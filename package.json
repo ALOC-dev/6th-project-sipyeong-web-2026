@@ -14,5 +14,8 @@
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10"
   }
 }

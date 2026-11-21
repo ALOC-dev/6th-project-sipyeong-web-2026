@@ -5,3 +5,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+apps/api/scripts/local
+docs/local

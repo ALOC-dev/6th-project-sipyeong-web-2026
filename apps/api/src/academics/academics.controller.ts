@@ -1,11 +1,10 @@
-import { BadRequestException, Body, Controller, Header, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Header, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
 import { CsrfGuard } from '../auth/csrf.guard';
 import { SessionGuard } from '../auth/session.guard';
 import type { SessionRequest } from '../auth/session.guard';
 import { AcademicsService } from './academics.service';
-import { parseSubmissionTerm } from './dto/submit-academics.dto';
 import type { AcademicUpload } from './academics.service';
 
 @Controller('academics')
@@ -22,19 +21,21 @@ export class AcademicsController {
   async submit(
     @Req() request: SessionRequest,
     @UploadedFiles() files: { grades?: AcademicUpload[]; timetable?: AcademicUpload[] } | undefined,
-    @Body() body: Record<string, unknown> | undefined,
   ) {
     const grades = files?.grades?.[0];
     const timetable = files?.timetable?.[0];
-    if (!grades || !timetable ||
-        !grades.originalname.toLowerCase().endsWith('.xlsx') ||
-        !timetable.originalname.toLowerCase().endsWith('.pdf') ||
-        !grades.buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 3, 4])) ||
-        timetable.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
-      throw new BadRequestException('성적표 XLSX와 수강신청확인서 PDF를 각각 하나씩 제출해 주세요.');
+    if (!grades && !timetable) {
+      throw new BadRequestException('성적표 XLSX 또는 수강신청확인서 PDF를 제출해 주세요.');
     }
-    const term = parseSubmissionTerm(body?.year, body?.termCode);
-    const data = await this.service.submit(request.academicSession!.userId, grades, timetable, term);
+    if (grades && (!grades.originalname.toLowerCase().endsWith('.xlsx') ||
+        !grades.buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 3, 4])))) {
+      throw new BadRequestException('성적표 XLSX 형식을 확인해 주세요.');
+    }
+    if (timetable && (!timetable.originalname.toLowerCase().endsWith('.pdf') ||
+        timetable.buffer.subarray(0, 5).toString('ascii') !== '%PDF-')) {
+      throw new BadRequestException('수강신청확인서 PDF 형식을 확인해 주세요.');
+    }
+    const data = await this.service.submit(request.academicSession!.userId, grades, timetable);
     return { data, meta: { requestId: randomUUID() } };
   }
 }

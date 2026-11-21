@@ -1,4 +1,5 @@
-import { extractTables, flag, headerLabel, numeric, required, text, validateTerm } from './document-extractor';
+import { extractTables, flag, headerLabel, numeric, required, text } from './document-extractor';
+import { validateTerm } from '../../common/academic-term';
 import type { ParsedCourseRecord } from './parsed-course-record';
 
 const headers = ['NO.', '학년도', '학기', '교과번호', '교과목명', '교과구분', '학점', '등급', '평점',

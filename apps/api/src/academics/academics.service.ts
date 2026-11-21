@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { AcademicsStore } from './academics.store';
 import { parseTranscript } from './parsers/transcript.parser';
 import { parseEnrollmentConfirmation } from './parsers/enrollment-confirmation.parser';
-import type { AcademicTerm, ParsedCourseRecord } from './parsers/parsed-course-record';
+import type { ParsedCourseRecord } from './parsers/parsed-course-record';
+import { currentSubmissionTerm } from '../common/academic-term';
 
 export interface AcademicUpload {
   originalname: string;
@@ -14,15 +15,17 @@ export interface AcademicUpload {
 export class AcademicsService {
   constructor(private readonly store: AcademicsStore) {}
 
-  async submit(userId: string, grades: AcademicUpload, timetable: AcademicUpload, term: AcademicTerm) {
+  async submit(userId: string, grades?: AcademicUpload, timetable?: AcademicUpload) {
+    if (!grades && !timetable) throw new BadRequestException('업로드할 파일이 없습니다.');
+    const term = currentSubmissionTerm();
     const [transcript, enrollment] = await Promise.all([
-      this.parse(() => parseTranscript(grades.buffer)),
-      this.parse(() => parseEnrollmentConfirmation(timetable.buffer, term)),
+      grades ? this.parse(() => parseTranscript(grades.buffer)) : Promise.resolve([]),
+      timetable ? this.parse(() => parseEnrollmentConfirmation(timetable.buffer, term)) : Promise.resolve([]),
     ]);
-    return this.store.save(userId, [
-      this.document(timetable, 'enrollment_confirmation', enrollment),
-      this.document(grades, 'transcript', transcript),
-    ]);
+    const documents = [];
+    if (timetable) documents.push(this.document(timetable, 'enrollment_confirmation', enrollment));
+    if (grades) documents.push(this.document(grades, 'transcript', transcript));
+    return this.store.save(userId, documents);
   }
 
   private async parse(parser: () => Promise<ParsedCourseRecord[]>) {
