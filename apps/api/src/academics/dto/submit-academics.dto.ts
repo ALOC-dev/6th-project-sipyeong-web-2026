@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { AcademicTerm } from '../parsers/parsed-course-record';
+import type { AcademicTerm } from '../../common/academic-term';
 
 export function parseSubmissionTerm(year: unknown, termCode: unknown): AcademicTerm {
   if (typeof year !== 'string' || !/^\d{4}$/.test(year) || Number(year) < 1900 ||
