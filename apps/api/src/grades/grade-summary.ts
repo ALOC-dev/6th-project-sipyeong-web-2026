@@ -70,7 +70,7 @@ export function presentRecord(row: GradeRow) {
   };
 }
 
-function totals(rows: GradeRow[]) {
+export function summarizeGradeTotals(rows: readonly Pick<GradeRow, 'recordId' | 'credits' | 'grade' | 'gradeValid' | 'status'>[]) {
   let earned = 0;
   let enrolled = 0;
   let gpaCredits = 0;
@@ -119,10 +119,10 @@ function totals(rows: GradeRow[]) {
 
 export function summarizeGrades(rows: GradeRow[], filter: CategoryFilter | null) {
   const byCategory = selectedCategories(filter).map(category => {
-    const { earnedCredits, enrolledCredits } = totals(rows.filter(row => categoryFor(row.categoryLabel) === category));
+    const { earnedCredits, enrolledCredits } = summarizeGradeTotals(rows.filter(row => categoryFor(row.categoryLabel) === category));
     return { category, earnedCredits, enrolledCredits, requiredCredits: null, remainingCredits: null };
   });
-  const { missingValidity, gradeUnknown, ...summary } = totals(rows);
+  const { missingValidity, gradeUnknown, ...summary } = summarizeGradeTotals(rows);
   const warnings = [];
   if (missingValidity.length) warnings.push({
     code: 'GRADE_VALIDITY_UNKNOWN', message: '성적 유효 여부를 확인할 수 없습니다. 성적표를 다시 올려 주세요.',
