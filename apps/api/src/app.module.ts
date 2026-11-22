@@ -1,4 +1,9 @@
 import { Controller, Get, Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { ApiExceptionFilter } from './api-exception.filter';
+import { AuthModule } from './auth/auth.module';
+import { AcademicsModule } from './academics/academics.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Controller('health')
 export class HealthController {
@@ -8,5 +13,9 @@ export class HealthController {
   }
 }
 
-@Module({ controllers: [HealthController] })
+@Module({
+  imports: [AuthModule, AcademicsModule, ProfileModule],
+  controllers: [HealthController],
+  providers: [ApiExceptionFilter, { provide: APP_FILTER, useExisting: ApiExceptionFilter }],
+})
 export class AppModule {}
