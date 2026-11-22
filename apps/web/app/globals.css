@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* 모든 페이지가 공유하는 라이트 테마 색상이다.
+   개별 페이지에서 같은 변수를 다시 선언하면 전역 테마가 가려지므로 여기서 관리한다. */
+:root {
+  color-scheme: light;
+  --outer: #e9edf2;
+  --canvas: #f3f3f9;
+  --surface: #ffffff;
+  --ink: #182238;
+  --muted: #65738b;
+  --line: #e7ebf2;
+  --soft: #f2f4f9;
+  --accent: #0868c9;
+  --track: #e5eaf2;
+  --planned: #a5c4e8;
+  --danger: #cf3543;
+  --focus: #83b9f5;
+  --hero-start: #174d97;
+  --hero-end: #4079bd;
+  --hero-ink: #ffffff;
+  --hero-muted: #d7e7fc;
+  --button-bg: #1768bd;
+  --on-button: #ffffff;
+
+  /* 기존 Tailwind 색상 이름도 같은 전역 테마를 가리키게 한다. */
+  --background: var(--outer);
+  --foreground: var(--ink);
+}
+
+/* ThemeProvider가 html에 data-theme="dark"를 넣으면 이 색상으로 교체된다.
+   시스템 자동 감지 규칙은 사용하지 않고 사용자가 선택한 두 가지 테마만 적용한다. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --outer: #0e1522;
+  --canvas: #151c2b;
+  --surface: #202b3d;
+  --ink: #edf3fc;
+  --muted: #abb8cb;
+  --line: #354258;
+  --soft: #2b374c;
+  --accent: #78b6ff;
+  --track: #354258;
+  --planned: #42658e;
+  --danger: #ff949c;
+  --focus: #83b9f5;
+  --hero-start: #12315d;
+  --hero-end: #244970;
+  --hero-ink: #ffffff;
+  --hero-muted: #d7e7fc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--outer);
+  color: var(--ink);
+  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}

@@ -1,0 +1,791 @@
+/* 배경·카드·본문 색상은 전역 테마 변수를 사용한다.
+   배치와 글자 크기는 기존 홈 화면 설정을 유지한다. */
+.page {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hero {
+  padding: 26px 22px 0;
+  color: var(--hero-ink);
+  background: linear-gradient(155deg, var(--hero-start), var(--hero-end));
+}
+
+.headingRow,
+.sectionHeading,
+.dateRow,
+.periodHeading,
+.cardHeading,
+.summaryRow,
+.summaryRow dd,
+.degreeCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.student {
+  margin: 0 0 4px;
+  color: var(--hero-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -1px;
+}
+
+.infoMark {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.headingRow > .infoMark {
+  width: 30px;
+  height: 30px;
+  font-size: 17px;
+}
+
+.hero .infoMark {
+  color: white;
+  background: rgb(255 255 255 / 20%);
+}
+
+.percentage {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0 0;
+  font-size: clamp(40px, 12vw, 54px);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+}
+
+.percentage span {
+  padding-top: 4px;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.certification {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.certification span {
+  color: var(--hero-muted);
+}
+
+.graduationCurve {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+}
+
+.dateRow {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.dateRow strong {
+  font-size: 14px;
+}
+
+.semesterSection {
+  margin-top: 18px;
+  padding: 14px 0 10px;
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  color: var(--hero-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.semesterGrid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.semester {
+  min-width: 0;
+  padding: 7px 2px 5px;
+  border-radius: 10px;
+  color: var(--hero-muted);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.semester svg {
+  display: block;
+  width: 29px;
+  height: 29px;
+  margin: 4px auto 0;
+}
+
+.currentSemester {
+  color: white;
+  background: rgb(255 255 255 / 16%);
+}
+
+.periodGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+
+.periodHeading {
+  gap: 6px;
+  font-size: 13px;
+}
+
+.periodHeading span {
+  font-variant-numeric: tabular-nums;
+}
+
+.periodTrack {
+  height: 5px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 22%);
+}
+
+.periodTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: white;
+}
+
+.periodGrid p {
+  margin: 7px 0 0;
+  font-size: 11px;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+
+.shortcuts button,
+.bottomNav :is(button, a) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  opacity: 1;
+}
+
+.shortcuts button {
+  padding: 17px 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.shortcuts svg {
+  width: 23px;
+  height: 23px;
+}
+
+.content {
+  display: grid;
+  gap: 12px;
+  padding: 16px 16px 28px;
+}
+
+.card {
+  min-width: 0;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.cardHeading {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.cardMore {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.summaryList {
+  margin: 0;
+}
+
+.summaryRow {
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.summaryRow + .summaryRow {
+  border-top: 1px solid var(--line);
+}
+
+.summaryRow:last-child {
+  padding-bottom: 4px;
+}
+
+.summaryLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.description {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.summaryRow dd {
+  flex-shrink: 0;
+  gap: 14px;
+  margin: 0;
+}
+
+.summaryRow dd strong {
+  font-size: 14px;
+}
+
+.chevron {
+  color: var(--muted);
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.requirement {
+  padding: 14px 0;
+}
+
+.requirement + .requirement {
+  border-top: 1px solid var(--line);
+}
+
+.requirement:last-child {
+  padding-bottom: 2px;
+}
+
+.requirementRow {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 58px 8px;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.requirementRow > span:first-child {
+  font-weight: 700;
+}
+
+.requirementRow strong {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.requirementTrack {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.requirementTrack span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.plannedFill {
+  background: var(--planned);
+}
+
+.earnedFill {
+  background: var(--accent);
+}
+
+.blueText {
+  color: var(--accent);
+}
+
+.warning {
+  margin: 5px 0 0;
+  color: var(--danger);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.degreeCard {
+  gap: 12px;
+}
+
+.course {
+  padding: 15px 0;
+}
+
+.course + .course {
+  border-top: 1px solid var(--line);
+}
+
+.course:last-child {
+  padding-bottom: 0;
+}
+
+.course h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.courseReason {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.gpaChange {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 4px;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.gpaChange > span:first-child {
+  color: var(--muted);
+}
+
+.gpaArrow {
+  color: var(--muted);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.bottomNav {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.bottomNav :is(button, a) {
+  gap: 3px;
+  padding: 0;
+  font-size: 10px;
+}
+
+.bottomNav svg {
+  width: 21px;
+  height: 21px;
+}
+
+.bottomNav .activeNav {
+  color: var(--accent);
+}
+
+@media (max-width: 359px) {
+  .hero {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .card {
+    padding: 15px;
+  }
+
+  .requirementRow {
+    grid-template-columns: 68px minmax(0, 1fr) 54px 6px;
+    gap: 5px;
+  }
+
+  .periodGrid {
+    gap: 12px;
+  }
+}
+/* 태블릿·PC 공통 */
+@media (min-width: 768px) {
+  .page {
+    width: calc(100% - 48px);
+    max-width: 1200px;
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: 24px 0 40px;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "navigation"
+      "hero"
+      "content";
+    gap: 20px;
+    align-content: start;
+
+    background: transparent;
+  }
+
+  /* 상단 메뉴 */
+  .bottomNav {
+    grid-area: navigation;
+    position: sticky;
+    top: 16px;
+    bottom: auto;
+    align-self: start;
+
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 4px 16px rgb(24 34 56 / 4%);
+  }
+
+  .bottomNav :is(button, a) {
+    flex-direction: row;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .bottomNav svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* 파란 영역을 가로 2열로 구성 */
+  .hero {
+    grid-area: hero;
+    min-width: 0;
+    padding: 26px 30px;
+
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "heading semesters"
+      "percentage semesters"
+      "certification periods"
+      "curve shortcuts"
+      "dates shortcuts";
+    gap: 8px 48px;
+
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .headingRow {
+    grid-area: heading;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .percentage {
+    grid-area: percentage;
+    margin: 4px 0 0;
+    font-size: 48px;
+  }
+
+  .certification {
+    grid-area: certification;
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .graduationCurve {
+    grid-area: curve;
+    margin-top: 0;
+  }
+
+  .dateRow {
+    grid-area: dates;
+    margin-top: 0;
+  }
+
+  .semesterSection {
+    grid-area: semesters;
+    align-self: start;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .semesterGrid {
+    margin-top: 12px;
+  }
+
+  .periodGrid {
+    grid-area: periods;
+    align-self: center;
+    padding: 12px 0;
+    border-top: 0;
+  }
+
+  .shortcuts {
+    grid-area: shortcuts;
+    align-self: end;
+  }
+
+  .shortcuts button {
+    padding: 16px 0 0;
+  }
+
+  /* 본문 카드 위치 */
+  .content {
+    grid-area: content;
+    min-width: 0;
+    padding: 0;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "summary"
+      "requirements"
+      "recommendations"
+      "gpa"
+      "degree";
+    gap: 20px;
+    align-content: start;
+    align-items: stretch;
+  }
+
+  .card {
+    min-width: 0;
+    padding: 22px;
+    border-radius: 16px;
+  }
+
+  .summaryCard {
+    grid-area: summary;
+  }
+
+  .requirementsCard {
+    grid-area: requirements;
+  }
+
+  .recommendationsCard {
+    grid-area: recommendations;
+  }
+
+  .gpaCard {
+    grid-area: gpa;
+  }
+
+  .degreeCard {
+    grid-area: degree;
+    grid-column: auto;
+  }
+
+  /* 요약을 가로 4칸으로 압축 */
+  .summaryCard .cardHeading {
+    margin-bottom: 18px;
+  }
+
+  .summaryList {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .summaryRow {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 18px;
+  }
+
+  .summaryRow + .summaryRow {
+    border-top: 0;
+    border-left: 1px solid var(--soft);
+  }
+
+  .summaryRow:first-child {
+    padding-left: 0;
+  }
+
+  .summaryRow:last-child {
+    padding-bottom: 0;
+    padding-right: 0;
+  }
+
+  .summaryRow dd strong {
+    font-size: 22px;
+  }
+
+  .summaryCard .chevron {
+    display: none;
+  }
+}
+
+/* 넓은 PC 화면: 본문을 2열로 구성 */
+@media (min-width: 1100px) {
+  .content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "summary summary"
+      "requirements recommendations"
+      "gpa degree";
+  }
+
+  .hero {
+    column-gap: 64px;
+  }
+
+  .requirement {
+    padding: 17px 0;
+  }
+
+  .course {
+    padding: 17px 0;
+  }
+}
+/* 본문 카드 제목 */
+.content .card h2 {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+/* 요약: 평점, 인정 학점 등의 항목명 */
+.content .summaryLabel {
+  font-size: 16px;
+}
+
+/* 요약: 실제 숫자 */
+.content .summaryRow dd strong {
+  font-size: 19px;
+}
+
+/* 전공 평점, 취득 학점 등의 보조 설명 */
+.content .description {
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 전체 보기, 플래너 등의 글자 */
+.content .cardMore {
+  font-size: 14px;
+}
+
+/* 졸업요건 항목과 남은 학점 */
+.content .requirementRow {
+  grid-template-columns: 84px minmax(0, 1fr) 68px 10px;
+  font-size: 14px;
+}
+
+.content .requirementRow strong {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* 추천 과목 이름 */
+.content .course h3 {
+  font-size: 17px;
+}
+
+/* 추천 이유 */
+.content .courseReason {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* 미이수·개설 관련 안내 */
+.content .warning {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 누적 평점 숫자 */
+.content .gpaChange {
+  gap: 16px;
+  font-size: 36px;
+}
+
+.content .gpaArrow {
+  font-size: 28px;
+}
+
+/* 제목 옆 도움말 아이콘 */
+.content .infoMark {
+  width: 17px;
+  height: 17px;
+  font-size: 11px;
+}
+
+/* 작은 휴대폰에서 졸업요건의 가로 간격 조정 */
+@media (max-width: 359px) {
+  .content .requirementRow {
+    grid-template-columns: 76px minmax(0, 1fr) 64px 8px;
+    gap: 5px;
+    font-size: 13px;
+  }
+
+  .content .requirementRow strong {
+    font-size: 13px;
+  }
+}
+.bottomNav a {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bottomNav a:focus-visible {
+  outline: 2px solid var(--button-bg);
+  outline-offset: 4px;
+  border-radius: 6px;
+}

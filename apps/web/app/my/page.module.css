@@ -1,0 +1,130 @@
+.page {
+  /* 색상 변수는 globals.css의 값을 상속받는다. 이곳에서 재선언하지 않는다. */
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.page button { font: inherit; }
+.page button:not(:disabled) { cursor: pointer; }
+.page button:disabled { opacity: 1; }
+.page :is(a, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+.header {
+  position: relative;
+  padding: 26px 22px;
+  color: var(--hero-ink);
+  background: linear-gradient(155deg, var(--hero-start), var(--hero-end));
+}
+.eyebrow { margin: 0 0 6px; color: var(--hero-muted); font-size: 13px; font-weight: 600; }
+.header h1 { margin: 0; font-size: 30px; font-weight: 750; }
+.sun { position: absolute; top: 24px; right: 24px; width: 30px; height: 30px; }
+.profileLine { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; }
+.profileLine > div { min-width: 0; }
+.profileLine h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.profileLine p { margin: 5px 0 0; color: var(--hero-muted); font-size: 13px; line-height: 1.7; }
+.page .changeButton { flex-shrink: 0; padding: 9px 12px; border: 0; border-radius: 999px; background: rgb(255 255 255 / 18%); color: white; font-size: 13px; font-weight: 600; }
+
+.content { flex: 1; display: grid; align-content: start; gap: 14px; padding: 18px 16px 28px; }
+.fileColumn { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.fileCard { display: flex; align-items: center; gap: 14px; padding: 22px 18px; border-radius: 16px; background: var(--surface); }
+.fileIcon { flex-shrink: 0; color: var(--accent); }
+.fileIcon svg { display: block; width: 24px; height: 24px; }
+.fileText { flex: 1; min-width: 0; }
+.fileText h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 700; }
+.fileText p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.page .updateButton { flex-shrink: 0; padding: 8px 12px; border: 0; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 13px; font-weight: 600; }
+
+.settings { min-width: 0; align-self: start; padding: 0 20px; border-radius: 16px; background: var(--surface); }
+.settingRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; min-height: 65px; padding: 15px 0; border: 0; background: transparent; color: var(--ink); text-align: left; }
+.settingRow + .settingRow { border-top: 1px solid var(--line); }
+/* 설정 카드 바깥의 독립 영역이다. PC에서는 두 열 전체를 차지하고,
+   모바일에서도 버튼과 오류 문구를 가로 가운데에 배치한다. */
+.logoutArea {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 6px;
+}
+/* 등록 버튼처럼 작은 타원형으로 만들고, 로그아웃의 강조 색상은 유지한다. */
+.page .logoutButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+/* 요청 중에는 다시 누르지 못하게 하고 진행 중임을 표시한다. */
+.page .logoutButton:disabled { cursor: wait; opacity: .65; }
+.logoutError { max-width: 440px; margin: 0; color: var(--danger); font-size: 13px; line-height: 1.7; text-align: center; }
+.settingRow strong { font-size: 14px; font-weight: 700; }
+.settingValue { display: inline-flex; align-items: center; gap: 16px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.settingValue > span { font-size: 22px; font-weight: 400; }
+.themeGroup { display: flex; padding: 4px; border-radius: 12px; background: var(--soft); }
+.page .themeGroup button { padding: 7px 9px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; }
+.page .themeGroup button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgb(0 0 0 / 5%); }
+
+.bottomNav { position: sticky; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.bottomNav :is(button, a) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font-size: 10px; text-decoration: none; }
+.bottomNav svg { width: 22px; height: 22px; }
+.bottomNav .activeNav { color: var(--accent); }
+
+/* 팝업은 파일 패널 하나만 표시하므로 PC에서도 폭을 560px로 제한한다.
+   작은 화면에서는 좌우 16px 여백을 확보하고, 긴 내용은 팝업 안에서 스크롤한다. */
+.uploadDialog { position: fixed; inset: 0; width: min(560px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; padding: 24px; overflow-y: auto; border: 0; border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 20%); }
+.uploadDialog::backdrop { background: rgb(15 23 42 / 45%); }
+.dialogHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.dialogHeading h2 { margin: 0; font-size: 21px; font-weight: 750; }
+.page .closeButton { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 25px; }
+.dialogDescription, .dialogNote { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.dialogNote { margin-top: 18px; }
+/* Excel/PDF 중 선택한 패널만 전체 너비를 사용한다. */
+.uploadGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 22px; }
+.uploadPanel { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 14px; }
+.uploadPanel h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.guide { margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--soft); font-size: 13px; }
+.guide summary { color: var(--accent); cursor: pointer; }
+.guide ol { margin: 10px 0 0; padding-left: 20px; color: var(--muted); line-height: 1.9; }
+.dropZone { margin-top: 14px; padding: 24px 12px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; }
+.dropZone > svg { display: block; width: 28px; height: 28px; margin: 0 auto; color: var(--accent); }
+.dropZone p { margin: 12px 0 5px; font-size: 14px; font-weight: 600; }
+.muted { display: block; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.page .primaryButton { display: block; margin: 16px auto 0; padding: 10px 18px; border: 0; border-radius: 10px; background: var(--button-bg); color: white; font-size: 14px; font-weight: 600; }
+.error { margin: 10px 0 0; color: var(--danger); font-size: 13px; line-height: 1.7; }
+.selectedFile { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--soft); }
+.selectedFile > div { min-width: 0; }
+.selectedFile strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.page .textButton { flex-shrink: 0; padding: 5px 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+.dialogFooter { display: flex; justify-content: flex-end; }
+.dialogFooter .primaryButton { margin-right: 0; }
+
+@media (min-width: 768px) {
+  .page { width: calc(100% - 48px); max-width: 1100px; min-height: calc(100dvh - 48px); margin: 24px auto; padding-bottom: 24px; border-radius: 20px; }
+  .header { padding: 28px 30px; border-radius: 20px 20px 0 0; }
+  .sun { right: 30px; }
+  .content { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; padding: 24px; }
+  .bottomNav { order: -1; top: 16px; bottom: auto; margin-bottom: 20px; padding: 15px; border: 1px solid var(--line); border-radius: 16px; }
+  .bottomNav :is(button, a) { flex-direction: row; gap: 8px; font-size: 13px; }
+  /* PC에서도 파일 팝업은 1열을 유지한다. 내 정보 본문의 2열 배치와는 별개다. */
+  .uploadGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 359px) {
+  .fileCard { gap: 10px; padding: 18px 14px; }
+  .fileText h2 { font-size: 14px; }
+  .page .updateButton { padding: 8px 10px; font-size: 12px; }
+}
