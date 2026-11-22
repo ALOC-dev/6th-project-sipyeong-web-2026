@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
+import { useStudentProfile } from "../profile-provider";
+import { ProfileEditor } from "./profile-editor";
+import { useGradePlan } from "../grade-plan-provider";
+import { formatGraduationPeriod } from "../profile-model";
 
 // 화면 문구가 바뀌어도 파일 종류를 식별하는 내부 값은 유지한다.
 // grades는 성적 Excel, timetable은 수강신청확인서 PDF를 뜻한다.
@@ -37,13 +41,13 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
-// 구현된 홈과 내 정보만 링크로 연결하고, 나머지 메뉴는 비활성화한다.
+// 구현된 홈·학점·내 정보는 링크로 연결하고, 나머지 메뉴는 비활성화한다.
 const navigation: { label: string; icon: IconName; href?: string }[] = [
   { label: "홈", icon: "home", href: "/" },
   { label: "졸업요건", icon: "checklist" },
   { label: "디그리", icon: "award" },
   { label: "로드맵", icon: "road" },
-  { label: "학점", icon: "chart" },
+  { label: "학점", icon: "chart", href: "/grades" },
   { label: "내 정보", icon: "user", href: "/my" },
 ];
 
@@ -170,6 +174,9 @@ function UploadPanel({
 
 export default function MyPage() {
   const router = useRouter();
+  const { resetPlan } = useGradePlan();
+  const { profile: studentProfile, updateProfile, resetProfile } = useStudentProfile();
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
 
   // 중복 요청을 막고, 실패했을 때 현재 화면에서 다시 시도할 수 있도록 관리한다.
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -229,6 +236,8 @@ export default function MyPage() {
 
       // 이미 만료된 세션이라면 종료 요청 없이 로그인 화면으로 이동한다.
       if (sessionResponse.status === 401) {
+        resetProfile();
+        resetPlan();
         router.replace("/login");
         router.refresh();
         return;
@@ -261,6 +270,8 @@ export default function MyPage() {
 
       // 로그인 화면 경로는 인증 API의 리다이렉트 경로와 같은 /login 기준이다.
       // 용준님 로그인 화면을 이 경로로 연결한 뒤 실제 이동을 확인한다.
+      resetProfile();
+      resetPlan();
       router.replace("/login");
       router.refresh();
     } catch {
@@ -272,11 +283,12 @@ export default function MyPage() {
   }
 
   // Figma 확인용 예시 데이터. 실제 사용자 및 업로드 결과 API로 교체할 부분.
+  // 프로필 표시값을 공유 상태에서 읽는다. 업로드 파일 상태와는 별개다.
   const profile = {
-    department: "컴퓨터과학부",
-    admissionYear: "2024학번",
-    curriculumYear: "2024학년도",
-    engineering: "공학인증 대상",
+    department: studentProfile.department,
+    admissionYear: `${studentProfile.admissionYear}학번`,
+    curriculumYear: `${studentProfile.admissionYear}학년도`,
+    engineering: studentProfile.engineeringCertification ? "공학인증 대상" : "공학인증 비대상",
   };
   const savedGrade = {
     name: "성적조회_2026-1.xlsx",
@@ -296,10 +308,10 @@ export default function MyPage() {
         <div className={styles.profileLine}>
           <div>
             <h2>{profile.department}</h2>
-            <p>{profile.admissionYear}, {profile.curriculumYear} 교육과정, {profile.engineering}</p>
+            <p>{profile.admissionYear}, {profile.curriculumYear} 교육과정, {profile.engineering} · {formatGraduationPeriod(studentProfile)} 졸업 예정</p>
           </div>
-          {/* 기본정보 변경 화면은 팀의 공통 화면 경로 확정 후 연결 */}
-          <button type="button" className={styles.changeButton} disabled>변경</button>
+          {/* 기존 화면 위에 변경 창을 열어 선택해 둔 업로드 파일을 유지한다. */}
+          <button type="button" className={styles.changeButton} onClick={() => setIsProfileEditing(true)}>변경</button>
         </div>
       </header>
 
@@ -387,6 +399,9 @@ export default function MyPage() {
           <button key={item.label} type="button" disabled><Icon name={item.icon} /><span>{item.label}</span></button>
         ))}
       </nav>
+
+      {/* 닫으면 편집 복사본만 사라지고, 적용했을 때만 공유 프로필을 갱신한다. */}
+      {isProfileEditing && <ProfileEditor profile={studentProfile} onSave={updateProfile} onClose={() => setIsProfileEditing(false)} />}
 
       {/* native dialog는 배경 클릭 방지, 팝업 안 포커스 이동, Esc 종료를 지원한다. */}
       <dialog

@@ -1,0 +1,149 @@
+/* 기존 globals.css의 공통 색상을 사용해 라이트·다크를 함께 지원한다. */
+.page { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; background: var(--canvas); color: var(--ink); font-size: 14px; line-height: 1.6; }
+.page button, .page input, .page select { font: inherit; }
+.page button:not(:disabled), .page summary { cursor: pointer; }
+.page button:disabled { opacity: .4; }
+.page :is(button, input, select, a, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.header { position: relative; padding: 24px 22px; background: linear-gradient(155deg, var(--hero-start), var(--hero-end)); color: var(--hero-ink); }
+.header > p { margin: 0 0 4px; font-size: 12px; color: var(--hero-muted); }
+.header h1 { margin: 0; font-size: 30px; font-weight: 750; line-height: 1.4; }
+.headerWeather { position: absolute; top: 16px; right: 22px; width: 32px; height: 32px; }
+.headerWeather svg { width: 100%; height: 100%; }
+.headerGpa { display: flex; justify-content: space-between; gap: 16px; margin-top: 18px; font-size: 13px; }
+.content { flex: 1; min-width: 0; padding: 16px 14px 30px; }
+.tabs, .smallTabs, .goalTabs { display: grid; padding: 4px; border-radius: 12px; background: var(--soft); }
+.tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tabs button, .smallTabs button, .goalTabs button { min-height: 34px; padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 650; }
+.tabs button[aria-selected="true"], .smallTabs button[aria-pressed="true"], .goalTabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgb(0 0 0 / 4%); }
+.demoNote { margin: 10px 2px 14px; font-size: 12px; color: var(--muted); }
+.recordGrid, .plannerGrid, .predictorGrid, .column { display: grid; gap: 14px; align-items: start; min-width: 0; }
+.card { min-width: 0; padding: 20px 18px; border-radius: 16px; background: var(--surface); }
+.card h2 { margin: 0; font-size: 16px; font-weight: 750; }
+.cardHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.help { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 10px; font-weight: 600; vertical-align: middle; }
+.hint { margin: 6px 0 0; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.textButton { padding: 4px 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; }
+.smallTabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.smallTabs button { min-height: 28px; font-size: 11px; }
+.historyChart { display: block; width: 100%; height: auto; max-height: 260px; }
+.chartLabel { fill: var(--muted); font-size: 11px; }
+.chartValue { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.weatherStrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 8px 0 24px; }
+.weatherStrip svg { display: block; width: 26px; height: 26px; margin: 0 auto; }
+.weatherStrip span { display: none; }
+.semesterHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.semesterHeading h2 { font-size: 19px; }
+.semesterHeading p { margin: 0 0 0 auto; font-size: 12px; color: var(--muted); }
+.semesterHeading p strong { color: var(--accent); }
+.semesterWeather { display: flex; width: 26px; height: 26px; }
+.roundButton { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 22px; }
+.courseRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 0; }
+.courseRow + .courseRow, .planRow + .planRow { border-top: 1px solid var(--line); }
+.courseRow:last-child, .planRow:last-child { padding-bottom: 0; }
+.courseText { min-width: 0; }
+.courseText h3 { margin: 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.courseText p { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
+.courseGrade { flex-shrink: 0; font-size: 16px; color: var(--accent); }
+.excluded h3, .excluded .courseGrade { color: var(--muted); text-decoration: line-through; }
+.targetNumber { display: block; margin-top: 8px; font-size: 40px; font-weight: 750; line-height: 1.25; }
+.range { display: block; width: 100%; margin: 18px 0 8px; accent-color: var(--accent); cursor: pointer; }
+.rangeLabels { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+.forecast { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.forecast p { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+.forecast > div { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; }
+.forecast > div > span { color: var(--muted); }
+.groupSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.groupSummary div { display: grid; gap: 4px; }
+.groupSummary span { color: var(--muted); font-size: 12px; }
+.groupSummary strong { font-size: 22px; }
+.planRow { display: grid; grid-template-columns: minmax(0, 1fr) 43px 80px; align-items: center; gap: 10px; padding: 16px 0; }
+.lockButton { padding: 6px 8px; border: 0; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 11px; }
+.lockButton[aria-pressed="true"] { background: var(--soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.gradeControl { display: grid; justify-items: end; gap: 4px; min-width: 0; }
+.gradeControl strong { color: var(--accent); font-size: 13px; }
+.gradeControl select { width: 74px; padding: 6px 8px; border: 0; border-radius: 9px; background: var(--soft); color: var(--ink); font-size: 13px; }
+.gradeControl .textButton { font-size: 11px; }
+.error, .errors { color: var(--danger); font-size: 13px; line-height: 1.7; }
+.error { margin: 12px 0 0; }
+.errors { margin: 12px 0 0; padding-left: 18px; }
+.inputRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; min-height: 54px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.inputRow > label { font-size: 13px; font-weight: 650; }
+.inputRow > input { width: 84px; }
+.inputRow select { max-width: 67%; text-overflow: ellipsis; }
+.inputRow input, .inputRow select, .assumptionGrid input { min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 9px; background: var(--soft); color: var(--ink); font-size: 13px; }
+.inputRow input { text-align: right; }
+.inputRow input[aria-invalid="true"] { border-color: var(--danger); }
+.fraction { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.fraction input { width: 60px; }
+.required { color: var(--accent); font-size: 10px; }
+.weightSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
+.weightSummary div { display: grid; gap: 3px; text-align: center; }
+.weightSummary div + div { border-left: 1px solid var(--line); }
+.weightSummary span { color: var(--muted); font-size: 11px; }
+.weightSummary strong { font-size: 15px; }
+.weightSummary div:last-child strong { color: var(--accent); }
+.assumptions summary { font-size: 13px; font-weight: 650; color: var(--accent); }
+.assumptions p { margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.assumptions h3 { margin: 18px 0 8px; font-size: 13px; }
+.assumptionGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.assumptionGrid label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.assumptionGrid input { width: 100%; }
+.goalTabs { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 16px; }
+.referenceBadge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: var(--soft); color: var(--accent); font-size: 11px; font-weight: 600; }
+.resultTitle { margin: 10px 0 4px; color: var(--muted); font-size: 13px; }
+.resultNumber { margin: 0; font-size: clamp(23px, 6vw, 34px); font-weight: 750; line-height: 1.4; word-break: keep-all; }
+.resultDescription { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.positionChart { position: relative; margin: 34px 0 24px; }
+.zones { display: flex; height: 36px; overflow: hidden; border-radius: 8px; }
+.zones > div { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.zone0 { background: #123d77; color: white; }
+.zone1 { background: #0871bf; color: white; }
+.zone2 { background: #70b1ed; color: #132b48; }
+.zone3 { background: #abc9e7; color: #132b48; }
+.zone4 { background: #ccd5e1; color: #132b48; }
+.goalPin, .midPin { position: absolute; transform: translateX(-50%); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.goalPin { bottom: 100%; padding-bottom: 5px; }
+.midPin { top: 100%; padding-top: 5px; color: var(--muted); }
+.rankTable { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.rankTable th, .rankTable td { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.rankTable th { text-align: left; font-weight: 500; }
+.rankTable td { text-align: right; font-weight: 650; }
+.rankTable tr:last-child :is(th, td) { border-bottom: 0; padding-bottom: 0; }
+.selectedRank { color: var(--accent); }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.bottomNav { position: sticky; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.bottomNav :is(button, a) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-decoration: none; font-size: 10px; }
+.bottomNav button:disabled { opacity: 1; }
+.bottomNav svg { width: 21px; height: 21px; }
+.bottomNav .activeNav { color: var(--accent); }
+
+/* PC에서는 파란 헤더와 메뉴를 가로로 쓰고, 탭의 주요 카드를 2열로 배치한다. */
+@media (min-width: 768px) {
+  .page { width: calc(100% - 48px); max-width: 1200px; min-height: calc(100dvh - 48px); margin: 24px auto; background: transparent; }
+  .bottomNav { order: -1; top: 16px; bottom: auto; margin-bottom: 20px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 16px; }
+  .bottomNav :is(button, a) { flex-direction: row; gap: 8px; font-size: 13px; }
+  .header { padding: 26px 30px; border-radius: 20px; }
+  .headerWeather { right: 30px; }
+  .headerGpa { max-width: 420px; }
+  .content { padding: 22px 0 30px; }
+  .tabs { max-width: 500px; }
+  .tabs button { min-height: 38px; font-size: 14px; }
+  .recordGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; }
+  .plannerGrid { grid-template-columns: minmax(260px, .8fr) minmax(0, 1.3fr); gap: 20px; }
+  .predictorGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .column { gap: 20px; }
+  .card { padding: 24px; }
+  .card h2 { font-size: 18px; }
+  .courseText h3 { font-size: 15px; }
+  .courseRow, .planRow { padding: 18px 0; }
+  .assumptionGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 359px) {
+  .card { padding: 18px 14px; }
+  .planRow { grid-template-columns: minmax(0, 1fr) 38px 68px; gap: 6px; }
+  .gradeControl select { width: 66px; }
+  .lockButton { padding: 6px 4px; }
+  .inputRow { gap: 6px; }
+  .fraction input { width: 52px; }
+}

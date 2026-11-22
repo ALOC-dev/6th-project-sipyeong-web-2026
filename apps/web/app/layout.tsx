@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "./theme-provider";
+import { StudentProfileProvider } from "./profile-provider";
+import { GradePlanProvider } from "./grade-plan-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,7 +29,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body className="min-h-full flex flex-col">
         {/* 모든 페이지를 감싸므로 이동·새로고침 후에도 공통 테마를 적용한다. */}
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <StudentProfileProvider>
+            <GradePlanProvider>{children}</GradePlanProvider>
+          </StudentProfileProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

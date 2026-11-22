@@ -789,3 +789,6 @@
   outline-offset: 4px;
   border-radius: 6px;
 }
+/* 홈 오른쪽 위 ? 버튼: 키보드·마우스로 안내창을 열 수 있다. */
+.infoMarkButton { padding: 0; border: 0; font-family: inherit; cursor: pointer; }
+.infoMarkButton:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }

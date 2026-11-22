@@ -1,107 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useRef } from "react";
+import { getProfileGraduationDates, formatGraduationDate, useGraduationProgress } from "./graduation-progress";
+import { GraduationProgressDialog } from "./graduation-progress-dialog";
 import styles from "./page.module.css";
+import { useStudentProfile } from "./profile-provider";
+import { getEngineeringStatus, getRemainingSemesterCount, formatGraduationPeriod } from "./profile-model";
+import { useGradePlan } from "./grade-plan-provider";
+import { buildSemesterWeather, getWeatherType, WeatherIcon } from "./grade-weather";
+import { SemesterGpaDialog } from "./semester-gpa-dialog";
 
-/* 날씨 종류 */
-type WeatherType =
-  | "rainbow"
-  | "sunny"
-  | "partly"
-  | "cloudy"
-  | "rain"
-  | "pending";
-
-/* 평점을 날씨로 변환 */
-function getWeatherType(gpa: number | null): WeatherType {
-  if (gpa === null) return "pending";
-  if (gpa >= 4.5) return "rainbow";
-  if (gpa >= 4.0) return "sunny";
-  if (gpa >= 3.5) return "partly";
-  if (gpa >= 3.0) return "cloudy";
-  return "rain";
-}
-
-/* 날씨 아이콘 */
-function WeatherIcon({ type }: { type: WeatherType }) {
-  const labels: Record<WeatherType, string> = {
-    rainbow: "무지개",
-    sunny: "맑음",
-    partly: "구름 조금",
-    cloudy: "흐림",
-    rain: "비",
-    pending: "성적 미확정",
-  };
-
-  const showSun = type === "sunny" || type === "partly";
-  const showCloud =
-    type === "partly" || type === "cloudy" || type === "rain";
-
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      role="img"
-      aria-label={labels[type]}
-    >
-      {type === "rainbow" && (
-        <g strokeWidth="3" strokeLinecap="round">
-          <path d="M3 25a13 13 0 0 1 26 0" stroke="#FF8795" />
-          <path d="M7 25a9 9 0 0 1 18 0" stroke="#FFD15C" />
-          <path d="M11 25a5 5 0 0 1 10 0" stroke="#86E0CA" />
-        </g>
-      )}
-
-      {showSun && (
-        <g
-          stroke="#FFD15C"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <circle cx="15" cy="13" r="5" fill="#FFD15C" />
-          <path d="M15 2v3M15 21v3M4 13h3M23 13h3" />
-          <path d="m7 5 2 2m12 12 2 2M7 21l2-2M21 7l2-2" />
-        </g>
-      )}
-
-      {showCloud && (
-        <g
-          transform={
-            type === "rain" ? "translate(0 -4)" : undefined
-          }
-        >
-          <path
-            d="M8 27a5 5 0 0 1-1-10 7 7 0 0 1 13-2 6 6 0 1 1 3 12H8Z"
-            fill={type === "rain" ? "#C5D5E8" : "#FFFFFF"}
-          />
-        </g>
-      )}
-
-      {type === "rain" && (
-        <g
-          stroke="#BDE7FF"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="m10 26-1 3" />
-          <path d="m17 26-1 3" />
-          <path d="m24 26-1 3" />
-        </g>
-      )}
-
-      {type === "pending" && (
-        <g stroke="currentColor" strokeWidth="1.5">
-          <circle
-            cx="16"
-            cy="16"
-            r="10"
-            strokeDasharray="3 3"
-            opacity=".5"
-          />
-          <path d="M12 16h8" strokeLinecap="round" />
-        </g>
-      )}
-    </svg>
-  );
-}
+// 홈과 학점·도움말이 공통 날씨 판정과 아이콘을 사용한다.
 
 /* 메뉴 아이콘 */
 const iconPaths = {
@@ -138,7 +48,12 @@ function Icon({ name }: { name: IconName }) {
 }
 
 /* 도움말 표시 */
-function InfoMark({ text }: { text: string }) {
+function InfoMark({ text, onClick }: { text: string; onClick?: () => void }) {
+  // 졸업 진행률 도움말은 실제 버튼으로 제공하고 기존의 다른 안내는 유지한다.
+  if (onClick) return (
+    <button type="button" className={`${styles.infoMark} ${styles.infoMarkButton}`}
+      aria-label={text} aria-haspopup="dialog" onClick={onClick}>?</button>
+  );
   return (
     <span
       className={styles.infoMark}
@@ -150,47 +65,7 @@ function InfoMark({ text }: { text: string }) {
   );
 }
 
-/* 화면 확인용 예시 데이터 */
-type Semester = {
-  label: string;
-  gpa: number | null;
-  current?: boolean;
-};
-
-const semesters: Semester[] = [
-  { label: "1-1", gpa: 3.2 },
-  { label: "1-2", gpa: 3.7 },
-  { label: "2-1", gpa: 4.0 },
-  { label: "2-2", gpa: 4.5 },
-  { label: "3-1", gpa: 2.8 },
-  { label: "지금", gpa: null, current: true },
-  { label: "4-1", gpa: null },
-  { label: "4-2", gpa: null },
-];
-
-const summaryItems = [
-  {
-    label: "평점",
-    description: "전공 3.84",
-    value: "3.78",
-  },
-  {
-    label: "인정 학점",
-    description: "취득 79학점",
-    value: "76학점",
-  },
-  {
-    label: "이번 학기",
-    description: "7과목, 12.19 종강",
-    value: "21학점",
-  },
-  {
-    label: "남은 학기",
-    description: "2027-2 졸업 예정",
-    value: "3학기",
-  },
-];
-
+// 성적·수강학점·예상 평점은 공유 데이터에서 읽는다.
 const requirements = [
   {
     label: "총 이수학점",
@@ -265,7 +140,40 @@ const navigation: { label: string; icon: IconName }[] = [
 
 /* 메인 화면 */
 export default function Home() {
-  const graduationProgress = 67.43;
+  const progressDialogRef = useRef<HTMLDialogElement>(null);
+  const { profile } = useStudentProfile();
+  const { data, previous, previousMajor, currentCredits, target, plan, forecast } = useGradePlan();
+  const semesterDialogRef = useRef<HTMLDialogElement>(null);
+  const dates = getProfileGraduationDates(profile);
+  const semesters = buildSemesterWeather({
+    history: data.history, currentSemester: data.currentSemester,
+    admissionYear: profile.admissionYear, graduationYear: profile.graduationYear, graduationMonth: profile.graduationMonth,
+    currentTarget: data.currentCourses.length ? target : null,
+    remainingSemesterAverage: data.remainingSemesterAverage,
+  });
+  const formatGpa = (value: number | null) => value === null ? "—" : value.toFixed(2);
+  const summaryItems = [
+    { label: "평점", description: `전공 ${formatGpa(previousMajor.gpa)}`, value: formatGpa(previous.gpa) },
+    { label: "인정 학점", description: `취득 ${previous.earnedCredits}학점`, value: `${previous.earnedCredits}학점` },
+    { label: "이번 학기", description: `${data.currentCourses.length}과목, 12.19 종강`, value: `${currentCredits}학점` },
+    { label: "남은 학기", description: `${formatGraduationPeriod(profile)} 졸업 예정`, value: `${getRemainingSemesterCount(data.currentSemester, profile.graduationYear, profile.graduationMonth)}학기` },
+  ];
+  // 현재 예시 성적에서 공학소양으로 분류된 유효 이수 과목만 집계한다.
+  // API 연결 후에는 이 목록도 업로드 결과로 교체한다.
+  const engineering = getEngineeringStatus(profile, data.history.flatMap((semester) => semester.courses));
+  const displayedRequirements = requirements
+    .filter((item) => item.label !== "공학소양" || engineering.required > 0)
+    .map((item) => item.label === "공학소양" ? {
+      ...item,
+      value: engineering.remaining ? `${engineering.remaining}학점` : "충족",
+      progress: engineering.progress,
+      planned: engineering.progress,
+      expected: false,
+    } : item);
+
+  // 고정 예시값 대신 같은 일정에서 %·해 위치·D-day를 함께 계산한다.
+  const progress = useGraduationProgress(dates);
+  const graduationProgress = progress?.percentage ?? 0;
   const position = graduationProgress / 100;
 
   const sunX = 12 + 336 * position;
@@ -283,11 +191,11 @@ export default function Home() {
             <h1 className={styles.title}>졸업 현황</h1>
           </div>
 
-          <InfoMark text="졸업 예정일까지의 기간 진행률입니다." />
+          <InfoMark text="졸업 진행률 산정 기준 보기" onClick={() => progressDialogRef.current?.showModal()} />
         </div>
 
         <p className={styles.percentage}>
-          {graduationProgress.toFixed(2)}
+          {progress ? graduationProgress.toFixed(2) : "—"}
           <span>%</span>
         </p>
 
@@ -301,7 +209,7 @@ export default function Home() {
           className={styles.graduationCurve}
           viewBox="0 0 360 88"
           role="img"
-          aria-label={`졸업까지의 기간 진행률 ${graduationProgress}%`}
+          aria-label={progress ? `졸업까지의 기간 진행률 ${graduationProgress.toFixed(2)}%` : "졸업 진행률 계산 중"}
         >
           <path
             d="M12 80H348"
@@ -339,8 +247,10 @@ export default function Home() {
         </svg>
 
         <div className={styles.dateRow}>
-          <span>입학 2024.03.04</span>
-          <strong>졸업 D-474</strong>
+          <span>입학 {formatGraduationDate(dates.admission)}</span>
+          <strong>{progress === null ? "졸업 일정 계산 중" : progress.remainingDays > 0
+            ? `졸업 D-${progress.remainingDays}` : progress.remainingDays === 0
+              ? "졸업 D-day" : `졸업 D+${Math.abs(progress.remainingDays)}`}</strong>
         </div>
 
         {/* 학기별 날씨 */}
@@ -348,26 +258,24 @@ export default function Home() {
           <div className={styles.sectionHeading}>
             <h2>학기별 평점</h2>
 
-            <InfoMark
-              text="4.5 무지개 / 4.0 이상 맑음 / 3.5 이상 구름 조금 / 3.0 이상 흐림 / 3.0 미만 비"
-            />
+            <InfoMark text="학기별 평점 날씨 기준 보기" onClick={() => semesterDialogRef.current?.showModal()} />
           </div>
 
           <div className={styles.semesterGrid}>
             {semesters.map((semester) => (
               <div
-                key={semester.label}
+                key={semester.id}
                 className={`${styles.semester} ${
                   semester.current ? styles.currentSemester : ""
                 }`}
                 title={
                   semester.gpa === null
                     ? "성적 미확정"
-                    : `평점 ${semester.gpa.toFixed(2)}`
+                    : `${semester.basis} ${semester.gpa.toFixed(2)}`
                 }
               >
                 <span>{semester.label}</span>
-                <WeatherIcon type={getWeatherType(semester.gpa)} />
+                <WeatherIcon type={getWeatherType(semester.gpa)} tone="hero" />
               </div>
             ))}
           </div>
@@ -461,7 +369,7 @@ export default function Home() {
             <span className={styles.cardMore}>전체 ›</span>
           </div>
 
-          {requirements.map((item) => (
+          {displayedRequirements.map((item) => (
             <div key={item.label} className={styles.requirement}>
               <div className={styles.requirementRow}>
                 <span>{item.label}</span>
@@ -555,26 +463,28 @@ export default function Home() {
           </div>
 
           <p className={styles.gpaChange}>
-            <span>3.78</span>
+            <span>{formatGpa(previous.gpa)}</span>
             <span className={styles.gpaArrow}>→</span>
-            <strong>3.77</strong>
+            <strong>{formatGpa(forecast)}</strong>
           </p>
 
           <p className={styles.description}>
-            이번 학기 목표 3.75, 21학점 반영
+            {plan.possible ? `이번 학기 목표 ${target.toFixed(2)} · 제안 평점 ${formatGpa(plan.summary.gpa)}, ${currentCredits}학점 반영` : "현재 고정 성적에서는 목표 달성이 어려워요."}
           </p>
         </section>
       </div>
 
-      {/* 공통 메뉴: 화면 연결 전 */}
+      {/* 구현된 홈·학점·내 정보 메뉴를 연결한다. */}
       <nav className={styles.bottomNav} aria-label="주 메뉴">
         {navigation.map((item) => {
           const href =
             item.label === "홈"
               ? "/"
-              : item.label === "내 정보"
-                ? "/my"
-                : null;
+              : item.label === "학점"
+                ? "/grades"
+                : item.label === "내 정보"
+                  ? "/my"
+                  : null;
 
           if (href) {
             return (
@@ -600,6 +510,8 @@ export default function Home() {
           );
         })}
       </nav>
+      <GraduationProgressDialog dialogRef={progressDialogRef} dates={dates} />
+      <SemesterGpaDialog dialogRef={semesterDialogRef} />
     </main>
   );
 }

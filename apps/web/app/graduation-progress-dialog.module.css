@@ -1,0 +1,34 @@
+/* 요청한 이미지처럼 화면 아래에서 열리는 둥근 안내창이다. */
+.dialog {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(560px, calc(100% - 4px));
+  max-width: 100%;
+  max-height: calc(100dvh - 16px);
+  margin: 0 auto 2px;
+  padding: 26px 22px 24px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 -8px 40px rgb(0 0 0 / 10%);
+}
+.dialog::backdrop { background: rgb(15 23 42 / 40%); }
+.handle { position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; border-radius: 999px; background: var(--line); transform: translateX(-50%); }
+.dialog h2 { margin: 0 38px 16px 0; font-size: 23px; font-weight: 750; line-height: 1.4; }
+.dialog .closeButton { position: absolute; top: 12px; right: 14px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--muted); font: inherit; font-size: 23px; line-height: 1; cursor: pointer; }
+.closeButton:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.rows { margin: 0; }
+.rows > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: baseline; gap: 16px; padding: 10px 0; }
+.rows > div + div { border-top: 1px solid var(--line); }
+.rows > div:last-child { padding-bottom: 4px; }
+.rows dt { color: var(--muted); font-size: 14px; font-weight: 650; }
+.rows dd { min-width: 0; margin: 0; font-size: 16px; font-weight: 700; line-height: 1.5; word-break: keep-all; }
+@media (max-width: 359px) {
+  .dialog { padding-right: 18px; padding-left: 18px; }
+  .rows > div { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; }
+  .rows dd { font-size: 14px; }
+}
+
+.dateNote { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
