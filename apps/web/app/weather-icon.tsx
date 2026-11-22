@@ -1,6 +1,6 @@
 import styles from "./weather-icon.module.css";
 
-export type Sky = "sun" | "sunc" | "cloud" | "none";
+export type Sky = "sun" | "sunc" | "cloud" | "rain" | "none";
 
 const CLOUD = "M7 19h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.2A3.4 3.4 0 0 0 7 19z";
 
@@ -40,6 +40,12 @@ export function WeatherIcon({ sky, className }: { sky: Sky; className?: string }
         </>
       )}
       {sky === "cloud" && <path transform="translate(0 -1)" style={{ fill: "var(--cl, #fff)" }} d={CLOUD} />}
+      {sky === "rain" && (
+        <>
+          <path transform="translate(0 -3.5)" style={{ fill: "var(--cl, #fff)" }} d={CLOUD} />
+          <path d="M9 18.5l-1 3M13 18.5l-1 3M17 18.5l-1 3" stroke="#8CC8FF" strokeWidth="2" strokeLinecap="round" />
+        </>
+      )}
       {sky === "none" && (
         <path transform="translate(0 -1)" style={{ fill: "none", stroke: "var(--cl, #fff)" }} strokeWidth="1.6" d={CLOUD} />
       )}

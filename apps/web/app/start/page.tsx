@@ -14,22 +14,28 @@ const FILE_TYPES = /\.(xlsx|xls|csv|pdf)$/i;
 const YEARS = ["2026", "2025", "2024", "2023", "2022"];
 const SEMESTERS = ["2026-2", "2026-1", "2025-2", "2025-1", "2024-2", "2024-1"];
 const GRADES = ["A+", "A0", "B+", "B0", "C+", "C0", "D+", "D0", "F", "P"];
+const ABEEK = [
+  "컴퓨터과학부 신입생은 심화프로그램에 자동으로 소속됩니다",
+  "심화프로그램은 일반 졸업요건과 공학교육인증 요건을 모두 충족해야 합니다",
+  "비인증 일반프로그램으로 전환을 승인받았거나 편입 또는 전과 후 일반프로그램에 배정되면 일반 졸업요건이 적용됩니다",
+  "복수전공은 전환 신청 사유이며 학교 승인 후 소속이 바뀝니다",
+];
+const NOW_GUIDE = ["포털에서 수강신청확인서 조회", "PDF로 저장", "위 파일 선택에서 성적표와 함께 선택"];
 const GUIDE = ["포털 로그인 후 대학행정", "수업/성적에서 성적표 조회", "엑셀 또는 PDF로 저장", "저장한 파일 선택"];
 const STARS = [[14, 12], [33, 30], [67, 10], [86, 34], [48, 22], [24, 62], [74, 56]];
 
 const CATALOG = new Map<string, string>([
   ...["컴퓨터과학개론", "자료구조", "알고리즘", "컴퓨터구조", "운영체제 기초", "이산수학", "유닉스프로그래밍", "운영체제", "캡스톤디자인"].map((n) => [n, "전공필수"] as const),
   ...["대학영어", "미적분학", "일반물리", "선형대수"].map((n) => [n, "교양필수"] as const),
-  ...["철학의 이해", "한국사의 이해", "논리와 사고", "현대미술의 이해", "도시와 환경", "글쓰기와 비평"].map((n) => [n, "교양선택"] as const),
-  ...["진로탐색과 설계", "빅데이터처리", "도시와 건축", "서양미술사"].map((n) => [n, "일반선택"] as const),
+  ...["철학의 이해", "한국사의 이해", "논리와 사고", "현대미술의 이해", "도시와 환경", "글쓰기와 비평", "진로탐색과 설계", "빅데이터처리", "도시와 건축", "서양미술사"].map((n) => [n, "교양선택"] as const),
   ...["이산구조 기초", "객체지향프로그래밍", "확률과통계", "프로그래밍언어론", "웹프로그래밍", "데이터베이스", "소프트웨어공학", "통계학입문", "컴퓨터그래픽스", "데이터통신", "데이터중심 머신러닝", "인공지능", "기계학습", "데이터마이닝", "컴퓨터네트워크"].map((n) => [n, "전공선택"] as const),
   ["공학경제", "공학소양"],
 ]);
 
 const SAMPLE: Row[] = [
   { name: "미적분학", meta: "3학점, 2026-1 A0, 재수강으로 2024-1 C+ 기록 제외", division: "교양필수" },
-  { name: "진로탐색과 설계", meta: "1학점, 2024-1 P, 평점 계산 제외", division: "일반선택" },
-  { name: "빅데이터처리", meta: "3학점, 2025-2 A+, 빅데이터 초급 인정 과목", division: "일반선택" },
+  { name: "진로탐색과 설계", meta: "1학점, 2024-1 P, 평점 계산 제외", division: "교양선택" },
+  { name: "빅데이터처리", meta: "3학점, 2025-2 A+, 빅데이터 초급 인정 과목", division: "교양선택" },
   { name: "컴퓨터과학개론", meta: "3학점, 2024-1 A+", division: "전공필수" },
 ];
 
@@ -154,9 +160,10 @@ export default function StartPage() {
                 </div>
                 <div className={styles.field}>
                   <div className={styles.lr}>
-                    <b><label htmlFor="sAbeek">공학인증 이수 대상</label></b>
-                    <input className={styles.sw} id="sAbeek" type="checkbox" checked={engineering} onChange={(e) => setEngineering(e.target.checked)} />
+                    <b><label htmlFor="sAbeek">공학교육인증 심화프로그램</label></b>
+                    <input className={styles.sw} id="sAbeek" type="checkbox" checked={engineering} onChange={(e) => setEngineering(e.target.checked)} aria-describedby="abkNote" />
                   </div>
+                  <ul className={styles.abk} id="abkNote">{ABEEK.map((t) => <li key={t}>{t}</li>)}</ul>
                 </div>
               </div>
               <div className={styles.stack}>
@@ -194,10 +201,10 @@ export default function StartPage() {
                         onDragLeave={(e) => { e.preventDefault(); setOver(false); }}
                         onDrop={(e) => { e.preventDefault(); setOver(false); takeFile(e.dataTransfer.files[0]); }}
                       >
-                        <input type="file" id="file" accept=".xlsx,.xls,.csv,.pdf" onChange={(e) => takeFile(e.target.files?.[0])} />
+                        <input type="file" id="file" accept=".xlsx,.xls,.csv,.pdf" multiple onChange={(e) => takeFile(e.target.files?.[0])} />
                         <span className={styles.ic}><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg></span>
-                        <b>성적표 파일 선택</b>
-                        <span className={styles.hint}>엑셀, CSV, PDF</span>
+                        <b>파일 선택</b>
+                        <span className={styles.hint}>성적표 엑셀, CSV, PDF<br />수강신청확인서 PDF</span>
                       </label>
                       {file && (
                         <div className={styles.file}>
@@ -215,6 +222,11 @@ export default function StartPage() {
                       <div className={styles.ct}><h2>성적표 파일 받는 법</h2></div>
                       <ol className={styles.steps}>{GUIDE.map((s) => <li key={s}>{s}</li>)}</ol>
                       <a className={`${styles.cta} ${styles.tint} ${styles.tap}`} href="https://portal.uos.ac.kr" target="_blank" rel="noopener">포털 열기</a>
+                    </div>
+                    <div className={styles.card}>
+                      <div className={styles.ct}><h2>이번 학기 수강 과목</h2></div>
+                      <p className={styles.ctext} style={{ marginBottom: 12 }}>수강 중인 과목은 성적표에 없으므로 가입할 때와 다음 학기를 추가할 때 모두 수강신청확인서 PDF로 올립니다</p>
+                      <ol className={styles.steps}>{NOW_GUIDE.map((s) => <li key={s}>{s}</li>)}</ol>
                     </div>
                   </div>
                 ) : (
