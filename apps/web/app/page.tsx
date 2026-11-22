@@ -574,7 +574,11 @@ export default function Home() {
               ? "/"
               : item.label === "내 정보"
                 ? "/my"
-                : null;
+                : item.label === "졸업요건"
+                  ? "/req"
+                  : item.label === "로드맵"
+                    ? "/road"
+                    : null;
 
           if (href) {
             return (

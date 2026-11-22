@@ -37,12 +37,12 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
-// 구현된 홈과 내 정보만 링크로 연결하고, 나머지 메뉴는 비활성화한다.
+// 구현된 화면만 링크로 연결하고, 나머지 메뉴는 비활성화한다.
 const navigation: { label: string; icon: IconName; href?: string }[] = [
   { label: "홈", icon: "home", href: "/" },
-  { label: "졸업요건", icon: "checklist" },
+  { label: "졸업요건", icon: "checklist", href: "/req" },
   { label: "디그리", icon: "award" },
-  { label: "로드맵", icon: "road" },
+  { label: "로드맵", icon: "road", href: "/road" },
   { label: "학점", icon: "chart" },
   { label: "내 정보", icon: "user", href: "/my" },
 ];
