@@ -26,14 +26,19 @@ export class AcademicsController {
   ) {
     const grades = files?.grades?.[0];
     const timetable = files?.timetable?.[0];
-    if (!grades || !timetable ||
-        !grades.originalname.toLowerCase().endsWith('.xlsx') ||
-        !timetable.originalname.toLowerCase().endsWith('.pdf') ||
-        !grades.buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 3, 4])) ||
-        timetable.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
-      throw new BadRequestException('성적표 XLSX와 수강신청확인서 PDF를 각각 하나씩 제출해 주세요.');
+    if (!grades && !timetable) {
+      throw new BadRequestException('성적표 XLSX 또는 수강신청확인서 PDF를 제출해 주세요.');
     }
-    const term = parseSubmissionTerm(body?.year, body?.termCode);
+    if (grades && (!grades.originalname.toLowerCase().endsWith('.xlsx') ||
+        !grades.buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 3, 4])))) {
+      throw new BadRequestException('성적표 XLSX 형식을 확인해 주세요.');
+    }
+    if (timetable && (!timetable.originalname.toLowerCase().endsWith('.pdf') ||
+        timetable.buffer.subarray(0, 5).toString('ascii') !== '%PDF-')) {
+      throw new BadRequestException('수강신청확인서 PDF 형식을 확인해 주세요.');
+    }
+    const term = timetable && (body?.year !== undefined || body?.termCode !== undefined)
+      ? parseSubmissionTerm(body?.year, body?.termCode) : undefined;
     const data = await this.service.submit(request.academicSession!.userId, grades, timetable, term);
     return { data, meta: { requestId: randomUUID() } };
   }
