@@ -1,7 +1,4 @@
-export interface AcademicTerm {
-  year: number;
-  termCode: '10' | '20';
-}
+import type { AcademicTerm } from '../../common/academic-term';
 
 export interface ParsedCourseRecord extends AcademicTerm {
   courseNumber: string;

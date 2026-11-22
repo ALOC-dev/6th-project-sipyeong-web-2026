@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import type { AcademicTerm } from './parsed-course-record';
 
 type Cell = string | number | boolean | null;
 export interface DocumentTable { name: string; rows: Cell[][] }
@@ -66,13 +65,6 @@ export function flag(value: Cell | undefined, field: string): boolean | null {
   if (raw === 'Y') return true;
   if (raw === 'N') return false;
   throw new Error(`${field} 값은 Y 또는 N이어야 합니다.`);
-}
-
-export function validateTerm(year: number, termCode: string): AcademicTerm {
-  if (!Number.isInteger(year) || year < 1900 || year > 9999 || (termCode !== '10' && termCode !== '20')) {
-    throw new Error('학년도 또는 학기 코드가 올바르지 않습니다.');
-  }
-  return { year, termCode };
 }
 
 export function headerLabel(value: Cell | undefined): string | undefined {
