@@ -3,7 +3,8 @@
 import type { RefObject } from "react";
 import { formatGraduationDate } from "./graduation-progress";
 import type { GraduationDates } from "./graduation-progress";
-import styles from "./graduation-progress-dialog.module.css";
+import styles from "./help-dialog.module.css";
+import { DialogClose } from "./help-button";
 
 export function GraduationProgressDialog({ dialogRef, dates }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -13,7 +14,7 @@ export function GraduationProgressDialog({ dialogRef, dates }: {
     // native dialog가 Esc 종료, 배경 조작 차단, 팝업 안 포커스 이동을 지원한다.
     <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="graduation-progress-title">
       <span className={styles.handle} aria-hidden="true" />
-      <button type="button" className={styles.closeButton} aria-label="졸업 진행률 안내 닫기" onClick={() => dialogRef.current?.close()}>×</button>
+      <DialogClose label="졸업 진행률 안내 닫기" onClick={() => dialogRef.current?.close()} />
       <h2 id="graduation-progress-title">졸업 진행률</h2>
       <dl className={styles.rows}>
         <div><dt>입학</dt><dd>{formatGraduationDate(dates.admission)}</dd></div>

@@ -1,3 +1,6 @@
+import { deriveRelativeCutoffs, getRelativeExclusion, RELATIVE_POLICY } from "./relative-policy";
+import type { CourseType, GroupRatios, RelativeFormFields } from "./relative-policy";
+
 // API와 화면에서 분리한 순수 계산 함수다. 여기서는 네트워크·저장소를 사용하지 않는다.
 export const GRADE_POINTS = {
   "A+": 4.5, A0: 4, "B+": 3.5, B0: 3, "C+": 2.5,
@@ -80,46 +83,47 @@ export function solvePlan(target: number, courses: PlanCourse[], locks: Locks) {
 
 export const GOALS = ["A+", "A0", "B+", "B0"] as const;
 export type GoalGrade = (typeof GOALS)[number];
-export type PredictorForm = {
+export type PredictorForm = RelativeFormFields & {
   enrollment: string; midRank: string;
   attendanceScore: string; attendanceMax: string;
   assignmentScore: string; assignmentMax: string;
   attendanceWeight: string; assignmentWeight: string; midtermWeight: string; finalWeight: string;
-  cutoffAPlus: string; cutoffA0: string; cutoffBPlus: string; cutoffB0: string;
 };
 export type PredictionInput = {
   enrollment: number; midRank: number; attendancePercent: number; assignmentPercent: number;
   attendanceWeight: number; assignmentWeight: number; midtermWeight: number; finalWeight: number;
+  courseType: CourseType;
+  groupRatios: GroupRatios;
   cutoffs: Record<GoalGrade, number>;
 };
 export type PredictionValidation =
   | { ok: true; value: PredictionInput; defaults: string[] }
   | { ok: false; errors: Record<string, string> };
 
-// 숫자 입력을 문자열로 보관해야 빈칸과 숫자 0을 구분할 수 있다.
-// 필수 등수는 임의로 1등으로 바꾸지 않고 오류를 표시한다.
+// 필수 등수와 점수·가중치, 공식 묶음 비율 및 세부 배분 가정을 각각 검사한다.
 export function validatePredictor(form: PredictorForm): PredictionValidation {
   const errors: Record<string, string> = {};
   const defaults: string[] = [];
   function number(key: keyof PredictorForm, label: string, fallback?: number) {
-    if (!form[key].trim()) {
+    const raw = form[key] ?? "";
+    if (!raw.trim()) {
       if (fallback !== undefined) return fallback;
       errors[key] = `${label}을 입력해주세요.`;
       return NaN;
     }
-    const value = Number(form[key]);
+    const value = Number(raw);
     if (!Number.isFinite(value)) errors[key] = `${label}은 숫자로 입력해주세요.`;
     return value;
   }
   const enrollment = number("enrollment", "수강 인원");
   const midRank = number("midRank", "중간고사 등수");
-  if (Number.isFinite(enrollment) && (!Number.isInteger(enrollment) || enrollment < 2 || enrollment > 10000)) errors.enrollment = "수강 인원은 2~10,000명의 정수로 입력해주세요.";
+  if (Number.isFinite(enrollment) && (!Number.isInteger(enrollment) || enrollment < 1 || enrollment > 10000)) errors.enrollment = "수강 인원은 1~10,000명의 정수로 입력해주세요.";
   if (Number.isFinite(midRank) && (!Number.isInteger(midRank) || midRank < 1 || midRank > enrollment)) errors.midRank = "중간 등수는 1등부터 수강 인원 사이의 정수여야 해요.";
 
   function score(scoreKey: keyof PredictorForm, maxKey: keyof PredictorForm, label: string, defaultMax: number, defaultPercent: number) {
     const max = number(maxKey, `${label} 만점`, defaultMax);
     if (Number.isFinite(max) && max <= 0) errors[maxKey] = `${label} 만점은 0보다 커야 해요.`;
-    if (!form[scoreKey].trim()) {
+    if (!(form[scoreKey] ?? "").trim()) {
       defaults.push(`${label} ${defaultPercent}%`);
       return defaultPercent;
     }
@@ -136,27 +140,41 @@ export function validatePredictor(form: PredictorForm): PredictionValidation {
   const weights = [attendanceWeight, assignmentWeight, midtermWeight, finalWeight];
   if (weights.some((weight) => !Number.isFinite(weight) || weight < 0 || weight > 100) || Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 100) > 1e-6) errors.weights = "평가 비율은 각각 0~100%, 합계 100%여야 해요.";
   if (Number.isFinite(finalWeight) && finalWeight <= 0) errors.finalWeight = "기말 등수를 추정하려면 기말고사 비율이 0%보다 커야 해요.";
-  const cutoffs = {
-    "A+": number("cutoffAPlus", "A+ 상위 비율"), A0: number("cutoffA0", "A0 상위 비율"),
-    "B+": number("cutoffBPlus", "B+ 상위 비율"), B0: number("cutoffB0", "B0 상위 비율"),
-  };
-  const limits = GOALS.map((grade) => cutoffs[grade]);
-  if (limits.some((limit, index) => !Number.isFinite(limit) || limit <= 0 || limit > 100 || (index > 0 && limit <= limits[index - 1]))) errors.cutoffs = "등급 누적 상위 비율은 A+ < A0 < B+ < B0 순서로, 0% 초과 100% 이하여야 해요.";
+
+  if (!["regular", "teacher", "graduate"].includes(form.courseType)) errors.courseType = "강좌 유형을 선택해주세요.";
+  const groupRatios = {} as GroupRatios;
+  for (const rule of RELATIVE_POLICY) {
+    const value = number(rule.formKey, `${rule.label} 비율`);
+    groupRatios[rule.group] = value;
+    if (Number.isFinite(value) && (value < rule.min || value > rule.max)) errors[rule.formKey] = `${rule.label} 비율은 ${rule.min}~${rule.max}% 범위여야 해요.`;
+  }
+  if (Math.abs(Object.values(groupRatios).reduce((sum, value) => sum + value, 0) - 100) > 1e-6) errors.groupTotal = "등급 묶음 비율의 합계는 100%여야 해요.";
+  const aPlusShare = number("aPlusShare", "A등급 내 A+ 비중");
+  const bPlusShare = number("bPlusShare", "B등급 내 B+ 비중");
+  if (Number.isFinite(aPlusShare) && (aPlusShare < 0 || aPlusShare > 100)) errors.aPlusShare = "A등급 내 A+ 비중은 0~100%여야 해요.";
+  if (Number.isFinite(bPlusShare) && (bPlusShare < 0 || bPlusShare > 100)) errors.bPlusShare = "B등급 내 B+ 비중은 0~100%여야 해요.";
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, defaults, value: { enrollment, midRank, attendancePercent, assignmentPercent, attendanceWeight, assignmentWeight, midtermWeight, finalWeight, cutoffs } };
+  return { ok: true, defaults, value: {
+    enrollment, midRank, attendancePercent, assignmentPercent, attendanceWeight, assignmentWeight, midtermWeight, finalWeight,
+    courseType: form.courseType as CourseType,
+    groupRatios, cutoffs: deriveRelativeCutoffs(groupRatios, aPlusShare, bPlusShare),
+  } };
 }
 
 export type RankEstimate = {
-  status: "rank" | "any" | "unreachable";
+  status: "rank" | "any" | "unreachable" | "excluded";
   rank: number | null;
   percentage: number;
   rawPercentage: number;
+  reason?: string;
 };
 
-// 원본 finalTop의 등수 백분위 모형을 확장해 출석과 사용자 평가 비율을 반영한다.
-// 과제의 득점률을 백분위로 바꾸는 부분은 실제 분포가 아닌 원본의 임의 가정이다.
-// 따라서 이 함수의 결과는 실제 학점 보장이 아닌 화면용 참고 추정이다.
 export function estimateFinalRank(input: PredictionInput, goal: GoalGrade): RankEstimate {
+  // 적용 제외 강좌는 함수 직접 호출 시에도 학교 비율로 추정하지 않는다.
+  const exclusion = getRelativeExclusion(input.enrollment, input.courseType);
+  if (exclusion) return { status: "excluded", rank: null, percentage: 0, rawPercentage: 0, reason: exclusion };
+  // 등급 묶음 비율은 제공된 규정을 반영하지만 아래 점수→등수 환산은 기존 가정이다.
+  // 실제 학생의 점수 분포로 검증한 모형이나 학점 보장 결과가 아니다.
   const midPercentile = input.midRank / input.enrollment * 100;
   const attendancePercentile = 100 - input.attendancePercent;
   const assignmentPercentile = Math.min(95, Math.max(5, (100 - input.assignmentPercent) * 2));
@@ -165,7 +183,6 @@ export function estimateFinalRank(input: PredictionInput, goal: GoalGrade): Rank
     + midPercentile * input.midtermWeight / 100;
   const rawPercentage = (input.cutoffs[goal] - known) / (input.finalWeight / 100);
   const rank = Math.floor(rawPercentage / 100 * input.enrollment + 1e-9);
-  // 상위 비율이 양수여도 1등에 해당하는 비율보다 작으면 달성 가능한 등수가 없다.
   if (rank < 1) return { status: "unreachable", rank: null, percentage: 0, rawPercentage };
   if (rank >= input.enrollment) return { status: "any", rank: input.enrollment, percentage: 100, rawPercentage };
   return { status: "rank", rank, percentage: rank / input.enrollment * 100, rawPercentage };

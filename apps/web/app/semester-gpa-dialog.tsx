@@ -2,12 +2,13 @@
 
 import type { RefObject } from "react";
 import { WEATHER_BANDS, WeatherIcon } from "./grade-weather";
-import styles from "./semester-gpa-dialog.module.css";
+import styles from "./help-dialog.module.css";
+import { DialogClose } from "./help-button";
 
 export function SemesterGpaDialog({ dialogRef }: { dialogRef: RefObject<HTMLDialogElement | null> }) {
   return <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="semester-gpa-help-title">
     <span className={styles.handle} aria-hidden="true" />
-    <button type="button" className={styles.closeButton} aria-label="학기별 평점 안내 닫기" onClick={() => dialogRef.current?.close()}>×</button>
+    <DialogClose label="학기별 평점 안내 닫기" onClick={() => dialogRef.current?.close()} />
     <h2 id="semester-gpa-help-title">학기별 평점</h2>
     {/* 범위 표와 실제 날씨가 동일한 WEATHER_BANDS를 읽으므로 기준이 어긋나지 않는다. */}
     <ul className={styles.weatherList}>{WEATHER_BANDS.map((band) => <li key={band.type}>

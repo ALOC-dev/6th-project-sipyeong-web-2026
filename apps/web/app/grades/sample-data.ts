@@ -1,4 +1,5 @@
 import type { Grade, Locks, PlanCourse, PredictorForm, RecordedCourse, Semester } from "./grade-utils";
+import { getDefaultRelativeFields } from "./relative-policy";
 
 // 원본 졸업이루매 HTML의 과목·학기 구성을 참고한 예시다. 실제 성적표 데이터가 아니다.
 // 원본은 학기 평점 숫자가 과목 성적과 일치하지 않아, 여기서는 과목에서 직접 계산한다.
@@ -59,14 +60,14 @@ export const CURRENT_COURSES: PlanCourse[] = [
 
 export const INITIAL_LOCKS: Locks = { discrete: "B+", unix: "A+" };
 
-// 스크린샷의 10/20/30/40 비율과 원본 HTML의 등급 컷을 예시 기본값으로 사용한다.
-// 학교·강의의 공식 기준 또는 강의계획서에서 읽어온 값이 아니다.
+// 출석·과제·시험 반영 비율은 기존 예시값이다. 실제 강의계획서에 맞춰 수정한다.
+// 등급 묶음 분포는 제공된 학교 규정, +/0 세부 배분은 별도의 기본 가정이다.
 export function makePredictorForms(courses: PlanCourse[] = CURRENT_COURSES): Record<string, PredictorForm> {
   return Object.fromEntries(courses.map((item) => [item.id, {
     enrollment: "60", midRank: "34",
     attendanceScore: "9", attendanceMax: "10",
     assignmentScore: "15", assignmentMax: "20",
     attendanceWeight: "10", assignmentWeight: "20", midtermWeight: "30", finalWeight: "40",
-    cutoffAPlus: "15", cutoffA0: "30", cutoffBPlus: "50", cutoffB0: "70",
+    ...getDefaultRelativeFields(),
   }]));
 }

@@ -48,33 +48,58 @@ export function formatGraduationDate(value: string) {
   return value.replaceAll("-", ".");
 }
 
-// 한국 날짜를 기준으로 하루 단위 진행률을 표시한다.
-function getToday() {
-  const parts = new Intl.DateTimeFormat("en", {
-    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)!.value;
-  return `${part("year")}-${part("month")}-${part("day")}`;
+// 날짜를 한국 시각 자정으로 해석해 브라우저 시간대와 무관하게 계산한다.
+function koreaMidnight(value: string) { return dayNumber(value) * DAY - 9 * 60 * 60 * 1000; }
+
+export function calculatePeriodProgress(startDate: string, endDate: string, now: number) {
+  const start = koreaMidnight(startDate), end = koreaMidnight(endDate);
+  if (end <= start || !Number.isFinite(now)) throw new RangeError("진행률 계산 일정을 확인해주세요.");
+  return Math.min(100, Math.max(0, (now - start) / (end - start) * 100));
 }
 
-function subscribeToToday(onChange: () => void) {
-  // 화면을 계속 열어두거나 다른 탭에서 돌아왔을 때 날짜를 갱신한다.
-  const timer = window.setInterval(onChange, 60_000);
-  window.addEventListener("focus", onChange);
-  document.addEventListener("visibilitychange", onChange);
-  return () => {
-    window.clearInterval(timer);
-    window.removeEventListener("focus", onChange);
-    document.removeEventListener("visibilitychange", onChange);
+export function calculateRealtimeGraduationProgress(dates: GraduationDates, now: number) {
+  const start = koreaMidnight(dates.admission), end = koreaMidnight(dates.graduation);
+  const percentage = calculatePeriodProgress(dates.admission, dates.graduation, now);
+  return {
+    timestamp: now, percentage, totalDays: (end - start) / DAY,
+    elapsedDays: Math.min(end - start, Math.max(0, now - start)) / DAY,
+    remainingDays: Math.ceil((end - now) / DAY) || 0,
   };
 }
 
-const getServerToday = (): string | null => null;
-
+// getSnapshot에서 Date.now()를 직접 반환하면 렌더 때마다 값이 달라진다.
+// 저장된 시각을 반환하고, 100ms마다 갱신한 뒤 구독자에게 알린다.
+let clockSnapshot: number | null = null;
+const listeners = new Set<() => void>();
+let clockTimer: number | undefined;
+function refreshClock() {
+  if (document.visibilityState === "hidden") return;
+  clockSnapshot = Date.now();
+  listeners.forEach((listener) => listener());
+}
+function subscribeClock(listener: () => void) {
+  listeners.add(listener);
+  if (listeners.size === 1) {
+    refreshClock();
+    clockTimer = window.setInterval(refreshClock, 100);
+    window.addEventListener("focus", refreshClock);
+    document.addEventListener("visibilitychange", refreshClock);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      window.clearInterval(clockTimer);
+      window.removeEventListener("focus", refreshClock);
+      document.removeEventListener("visibilitychange", refreshClock);
+    }
+  };
+}
+const getClockSnapshot = () => clockSnapshot;
+const getServerClock = (): number | null => null;
 export function useGraduationProgress(dates: GraduationDates) {
-  // 서버와 최초 클라이언트 렌더에서는 같은 빈 상태를 사용해 hydration 오류를 피한다.
-  const today = useSyncExternalStore<string | null>(subscribeToToday, getToday, getServerToday);
-  return today ? calculateGraduationProgress(dates, today) : null;
+  // 서버와 최초 렌더는 같은 빈 값으로 시작해 hydration 오류를 피한다.
+  const now = useSyncExternalStore(subscribeClock, getClockSnapshot, getServerClock);
+  return now === null ? null : calculateRealtimeGraduationProgress(dates, now);
 }
 
 // 연·월은 사용자 선택값을 사용한다. 입학일은 기존 3/4 예시를 유지한다.

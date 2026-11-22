@@ -1,0 +1,29 @@
+/* 원본 sheet: 모바일은 하단, PC는 화면 중앙. 기존 하단 고정 CSS를 사용하지 않는다. */
+.dialog { position: fixed; inset: auto 0 0; width: min(520px, 100%); max-width: none; max-height: 90dvh; height: fit-content; margin: 0 auto; padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; border: 0; border-radius: 24px 24px 0 0; background: var(--surface); color: var(--ink); font: inherit; }
+.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.handle { display: block; width: 36px; height: 4px; margin: 0 auto 16px; border-radius: 99px; background: var(--line); }
+.dialog h2 { margin: 2px 36px 10px 0; font-size: 24px; font-weight: 700; line-height: 1.55; letter-spacing: -.02em; }
+.rows, .basis { margin: 8px 0 0; }
+.rows > div, .basis > div { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 11px 0; font-size: 15px; font-weight: 600; line-height: 1.45; }
+.rows > div + div, .basis > div + div { border-top: .5px solid var(--line); }
+.rows dt, .basis dt { color: var(--muted); font-size: 14px; font-weight: 600; }
+.rows dd, .basis dd { min-width: 0; margin: 0; font-size: 15px; font-weight: 600; word-break: keep-all; }
+.dateNote, .note { margin: 12px 0 0; color: var(--muted); font-size: 13px; font-weight: 400; line-height: 1.5; }
+.weatherList { margin: 8px 0 0; padding: 0; list-style: none; }
+.weatherList li { display: flex; align-items: center; gap: 12px; padding: 11px 0; }
+.weatherList li + li { border-top: .5px solid var(--line); }
+.weatherList strong { font-size: 15px; font-weight: 600; }
+.icon { display: block; flex: none; width: 28px; height: 28px; }
+.icon svg { display: block; width: 100%; height: 100%; }
+.dialog h3 { margin: 20px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.list { margin: 8px 0 0; padding-left: 20px; font-size: 15px; font-weight: 600; }
+.list li { padding: 10px 0; }
+.dialog:focus { outline: none; }
+@media (min-width: 900px) {
+  /* inset과 margin을 모두 지정해 PC에서도 하단 위치가 남지 않게 한다. */
+  .dialog { inset: 0; width: min(520px, calc(100% - 48px)); max-height: calc(100dvh - 48px); margin: auto; border-radius: 24px; }
+}
+@media (max-width: 359px) {
+  .dialog { padding-right: 16px; padding-left: 16px; }
+  .rows > div, .basis > div { grid-template-columns: 82px minmax(0, 1fr); gap: 8px; }
+}

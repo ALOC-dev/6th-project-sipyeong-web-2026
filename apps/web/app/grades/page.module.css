@@ -1,149 +1,154 @@
-/* 기존 globals.css의 공통 색상을 사용해 라이트·다크를 함께 지원한다. */
-.page { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; background: var(--canvas); color: var(--ink); font-size: 14px; line-height: 1.6; }
-.page button, .page input, .page select { font: inherit; }
+/* 사진의 HTML과 같은 screen/segctl/card 간격을 사용한다. 폰트는 전역 Pretendard를 상속한다. */
+.page { width: 100%; max-width: 560px; min-height: 100dvh; margin: 0 auto; background: var(--canvas); color: var(--ink); font-size: 16px; line-height: 1.55; }
 .page button:not(:disabled), .page summary { cursor: pointer; }
-.page button:disabled { opacity: .4; }
-.page :is(button, input, select, a, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-.header { position: relative; padding: 24px 22px; background: linear-gradient(155deg, var(--hero-start), var(--hero-end)); color: var(--hero-ink); }
-.header > p { margin: 0 0 4px; font-size: 12px; color: var(--hero-muted); }
-.header h1 { margin: 0; font-size: 30px; font-weight: 750; line-height: 1.4; }
-.headerWeather { position: absolute; top: 16px; right: 22px; width: 32px; height: 32px; }
+.page button:disabled { opacity: .35; cursor: default; }
+.page :is(button, input, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.header { --px: 20px; position: relative; background: linear-gradient(180deg, var(--hero-start), var(--hero-end)); color: white; }
+.headerTitle { padding: calc(env(safe-area-inset-top, 0px) + 22px) var(--px) 2px; }
+.headerTitle > p { margin: 0 0 2px; color: rgb(255 255 255 / 78%); font-size: 13px; font-weight: 600; }
+.header h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+.headerWeather { position: absolute; top: 8px; left: 68.4%; width: 30px; height: 30px; transform: translateX(-50%); }
 .headerWeather svg { width: 100%; height: 100%; }
-.headerGpa { display: flex; justify-content: space-between; gap: 16px; margin-top: 18px; font-size: 13px; }
-.content { flex: 1; min-width: 0; padding: 16px 14px 30px; }
-.tabs, .smallTabs, .goalTabs { display: grid; padding: 4px; border-radius: 12px; background: var(--soft); }
-.tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.tabs button, .smallTabs button, .goalTabs button { min-height: 34px; padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 650; }
-.tabs button[aria-selected="true"], .smallTabs button[aria-pressed="true"], .goalTabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgb(0 0 0 / 4%); }
-.demoNote { margin: 10px 2px 14px; font-size: 12px; color: var(--muted); }
-.recordGrid, .plannerGrid, .predictorGrid, .column { display: grid; gap: 14px; align-items: start; min-width: 0; }
-.card { min-width: 0; padding: 20px 18px; border-radius: 16px; background: var(--surface); }
-.card h2 { margin: 0; font-size: 16px; font-weight: 750; }
-.cardHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-.help { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 10px; font-weight: 600; vertical-align: middle; }
-.hint { margin: 6px 0 0; font-size: 12px; line-height: 1.7; color: var(--muted); }
-.textButton { padding: 4px 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; }
+.headerGpa { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; padding: 10px var(--px) 18px; font-size: 14.5px; font-weight: 600; }
+.headerGpa strong { font-weight: 700; }
+.headerGpa > span { margin-left: auto; opacity: .82; font-weight: 500; text-align: right; }
+.content { min-width: 0; padding: 20px 16px 32px; }
+.tabs, .smallTabs, .goalTabs { display: grid; padding: 3px; border-radius: 12px; background: var(--soft); }
+.tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; background: var(--seg, #E5E8EF); }
+.tabs button, .smallTabs button, .goalTabs button { min-width: 0; padding: 7px 4px; border: 0; border-radius: 9px; background: none; color: var(--secondary); font-family: inherit; font-size: 14.5px; font-weight: 600; line-height: 1.55; }
+.tabs button[aria-selected="true"], .smallTabs button[aria-pressed="true"], .goalTabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 3px 8px rgb(0 0 0 / 10%), 0 0 0 .5px rgb(0 0 0 / 4%); }
+.recordGrid, .plannerGrid, .predictorGrid, .column { display: grid; align-items: start; gap: 12px; min-width: 0; }
+.card { min-width: 0; padding: 22px 20px; border-radius: 12px; background: var(--surface); }
+.card h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.cardHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 14px; }
+.cardHeading h2 { display: flex; align-items: center; gap: 6px; }
+.currentSummary { margin: 8px 0 0; }
+.currentSummary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 0; }
+.currentSummary > div + div { border-top: .5px solid var(--line); }
+.currentSummary dt { color: var(--secondary); font-size: 14.5px; font-weight: 400; }
+.currentSummary small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.currentSummary dd { margin: 0; font-size: 15px; font-weight: 700; }
 .smallTabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.smallTabs button { min-height: 28px; font-size: 11px; }
-.historyChart { display: block; width: 100%; height: auto; max-height: 260px; }
-.chartLabel { fill: var(--muted); font-size: 11px; }
-.chartValue { fill: var(--ink); font-size: 12px; font-weight: 700; }
-.weatherStrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 8px 0 24px; }
-.weatherStrip svg { display: block; width: 26px; height: 26px; margin: 0 auto; }
-.weatherStrip span { display: none; }
-.semesterHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-.semesterHeading h2 { font-size: 19px; }
-.semesterHeading p { margin: 0 0 0 auto; font-size: 12px; color: var(--muted); }
-.semesterHeading p strong { color: var(--accent); }
-.semesterWeather { display: flex; width: 26px; height: 26px; }
-.roundButton { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 22px; }
-.courseRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 0; }
-.courseRow + .courseRow, .planRow + .planRow { border-top: 1px solid var(--line); }
-.courseRow:last-child, .planRow:last-child { padding-bottom: 0; }
-.courseText { min-width: 0; }
-.courseText h3 { margin: 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
-.courseText p { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
-.courseGrade { flex-shrink: 0; font-size: 16px; color: var(--accent); }
+.smallTabs button { padding: 5px 10px; font-size: 12.5px; }
+.smallTabs button[aria-pressed="true"] { box-shadow: 0 1px 3px rgb(0 0 0 / 5%); }
+.chartScroller { overflow-x: auto; }
+.historyChart { display: block; width: 100%; height: auto; }
+.chartLabel { fill: var(--muted); font-family: inherit; font-size: 11px; font-weight: 600; }
+.chartValue { fill: var(--ink); font-family: inherit; font-size: 11px; font-weight: 700; }
+.semesterHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin: -6px 0 6px; }
+.semesterHeading h2 { display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 20px; font-weight: 700; }
+.semesterHeading h2 svg { width: 24px; height: 24px; }
+.semesterHeading p { margin: 0 0 0 auto; color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.semesterHeading p strong { color: var(--accent); font-weight: 700; }
+.roundButton { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--secondary); }
+.roundButton svg { width: 18px; height: 18px; stroke-width: 2; }
+.roundButton:first-child svg { transform: rotate(180deg); }
+.courseRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; }
+.courseRow + .courseRow, .planRow + .planRow { border-top: .5px solid var(--line); }
+.courseText { flex: 1; min-width: 0; }
+.courseText h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.courseText p { margin: 0; color: var(--muted); font-size: 13.5px; font-weight: 400; }
+.courseGrade { flex: none; font-size: 17px; font-weight: 700; color: var(--accent); }
 .excluded h3, .excluded .courseGrade { color: var(--muted); text-decoration: line-through; }
-.targetNumber { display: block; margin-top: 8px; font-size: 40px; font-weight: 750; line-height: 1.25; }
-.range { display: block; width: 100%; margin: 18px 0 8px; accent-color: var(--accent); cursor: pointer; }
-.rangeLabels { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
-.forecast { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-.forecast p { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
-.forecast > div { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; }
+.targetNumber { display: block; margin: 4px 0 0; font-size: 40px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.range { display: block; width: 100%; height: 20px; margin: 14px 0 0; accent-color: var(--accent); cursor: pointer; }
+.forecast { margin-top: 18px; padding-top: 14px; border-top: .5px solid var(--line); }
+.forecast p { margin: 0 0 4px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+.forecast > div { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
 .forecast > div > span { color: var(--muted); }
-.groupSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
-.groupSummary div { display: grid; gap: 4px; }
-.groupSummary span { color: var(--muted); font-size: 12px; }
-.groupSummary strong { font-size: 22px; }
-.planRow { display: grid; grid-template-columns: minmax(0, 1fr) 43px 80px; align-items: center; gap: 10px; padding: 16px 0; }
-.lockButton { padding: 6px 8px; border: 0; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 11px; }
-.lockButton[aria-pressed="true"] { background: var(--soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.gradeControl { display: grid; justify-items: end; gap: 4px; min-width: 0; }
-.gradeControl strong { color: var(--accent); font-size: 13px; }
-.gradeControl select { width: 74px; padding: 6px 8px; border: 0; border-radius: 9px; background: var(--soft); color: var(--ink); font-size: 13px; }
-.gradeControl .textButton { font-size: 11px; }
-.error, .errors { color: var(--danger); font-size: 13px; line-height: 1.7; }
-.error { margin: 12px 0 0; }
-.errors { margin: 12px 0 0; padding-left: 18px; }
-.inputRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; min-height: 54px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.inputRow > label { font-size: 13px; font-weight: 650; }
-.inputRow > input { width: 84px; }
-.inputRow select { max-width: 67%; text-overflow: ellipsis; }
-.inputRow input, .inputRow select, .assumptionGrid input { min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 9px; background: var(--soft); color: var(--ink); font-size: 13px; }
+.forecastArrow { font-size: 22px; }
+.forecast strong { font-weight: 700; }
+.planRow { display: grid; grid-template-columns: minmax(0, 1fr) auto 96px; align-items: center; column-gap: 10px; padding: 16px 0; }
+.lockButton { flex: none; padding: 6px 10px; border: 0; border-radius: 99px; background: var(--soft); color: var(--secondary); font-family: inherit; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.lockButton[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 9%, var(--surface)); color: var(--accent); }
+.gradeControl { display: grid; justify-items: end; gap: 1px; min-width: 0; text-align: right; }
+.gradeControl > strong, .gradeLink strong { color: var(--accent); font-size: 14px; font-weight: 700; }
+.gradeControl select { width: 46px; padding: 5px 0; border: 0; border-radius: 10px; background: var(--soft); color: var(--ink); font-family: inherit; font-size: 14px; font-weight: 700; text-align: center; text-align-last: center; appearance: none; }
+.gradeLink { display: grid; justify-items: end; gap: 1px; padding: 2px 0; border: 0; background: none; font-family: inherit; text-align: right; }
+.gradeControl small { color: var(--muted); font-size: 12.5px; font-weight: 400; line-height: 1.5; }
+.inputRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; }
+.inputRow:first-child { padding-top: 0; }
+.inputRow + .inputRow, .weightBox + .inputRow { border-top: .5px solid var(--line); }
+.card > .inputRow:last-child { padding-bottom: 0; }
+.inputRow > label { font-size: 15px; font-weight: 600; }
+.inputRow input, .inputRow select, .assumptionGrid input { min-width: 0; border: 0; border-radius: 10px; padding: 8px 12px; background: var(--soft); color: var(--secondary); font-family: inherit; font-size: 15px; font-weight: 600; }
+.inputRow select { width: 120px; max-width: 65%; text-overflow: ellipsis; color: var(--ink); text-align: right; text-align-last: right; }
 .inputRow input { text-align: right; }
-.inputRow input[aria-invalid="true"] { border-color: var(--danger); }
-.fraction { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.fraction input { width: 60px; }
-.required { color: var(--accent); font-size: 10px; }
-.weightSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
-.weightSummary div { display: grid; gap: 3px; text-align: center; }
-.weightSummary div + div { border-left: 1px solid var(--line); }
-.weightSummary span { color: var(--muted); font-size: 11px; }
-.weightSummary strong { font-size: 15px; }
+.inputRow input[aria-invalid="true"] { box-shadow: inset 0 0 0 1px var(--danger); }
+.fraction { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 15px; font-weight: 600; }
+.fraction input { width: 64px; }
+.required { color: var(--accent); font-size: 12px; }
+.weightBox { padding: 12px 0 14px; border-top: .5px solid var(--line); }
+.weightHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.weightHeading h2 { font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.textButton { padding: 0; border: 0; background: none; color: var(--muted); font-family: inherit; font-size: 12.5px; font-weight: 400; }
+.weightSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 10px; text-align: center; }
+.weightSummary div + div { border-left: .5px solid var(--line); }
+.weightSummary span { display: block; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.weightSummary strong { display: block; margin-top: 2px; font-size: 18px; font-weight: 700; }
 .weightSummary div:last-child strong { color: var(--accent); }
-.assumptions summary { font-size: 13px; font-weight: 650; color: var(--accent); }
-.assumptions p { margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
-.assumptions h3 { margin: 18px 0 8px; font-size: 13px; }
-.assumptionGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.assumptionGrid label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
-.assumptionGrid input { width: 100%; }
 .goalTabs { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 16px; }
-.referenceBadge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: var(--soft); color: var(--accent); font-size: 11px; font-weight: 600; }
-.resultTitle { margin: 10px 0 4px; color: var(--muted); font-size: 13px; }
-.resultNumber { margin: 0; font-size: clamp(23px, 6vw, 34px); font-weight: 750; line-height: 1.4; word-break: keep-all; }
-.resultDescription { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
-.positionChart { position: relative; margin: 34px 0 24px; }
-.zones { display: flex; height: 36px; overflow: hidden; border-radius: 8px; }
-.zones > div { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 650; white-space: nowrap; }
-.zone0 { background: #123d77; color: white; }
-.zone1 { background: #0871bf; color: white; }
-.zone2 { background: #70b1ed; color: #132b48; }
-.zone3 { background: #abc9e7; color: #132b48; }
-.zone4 { background: #ccd5e1; color: #132b48; }
-.goalPin, .midPin { position: absolute; transform: translateX(-50%); font-size: 10px; font-weight: 650; white-space: nowrap; }
-.goalPin { bottom: 100%; padding-bottom: 5px; }
-.midPin { top: 100%; padding-top: 5px; color: var(--muted); }
-.rankTable { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-.rankTable th, .rankTable td { padding: 14px 0; border-bottom: 1px solid var(--line); }
-.rankTable th { text-align: left; font-weight: 500; }
-.rankTable td { text-align: right; font-weight: 650; }
-.rankTable tr:last-child :is(th, td) { border-bottom: 0; padding-bottom: 0; }
-.selectedRank { color: var(--accent); }
+.goalTabs button { padding: 7px 0; font-size: 15px; }
+.resultTitle { margin: 0 0 4px; color: var(--secondary); font-size: 14px; font-weight: 600; }
+.resultNumber { margin: 4px 0; font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.resultDescription { margin: 0; color: var(--secondary); font-size: 16px; }
+.referenceNote { margin: 8px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; }
+.positionChart { position: relative; margin: 34px 0 36px; }
+.zones { display: flex; height: 40px; overflow: hidden; border-radius: 12px; }
+.zones > div { display: grid; place-items: center; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.zone0 { background: #0B3A80; color: white; }
+.zone1 { background: #0077C8; color: white; }
+.zone2 { background: #6AAEF0; color: var(--ink); }
+.zone3 { background: #B5D5F4; color: #111A2E; }
+.zone4 { background: #BCC5D2; color: #111A2E; }
+.zone5 { background: #A7AFBF; color: #111A2E; }
+.goalFrame { position: absolute; top: -5px; left: -2px; height: 50px; border: 2.5px solid var(--ink); border-radius: 14px; pointer-events: none; }
+.goalPin, .midPin { position: absolute; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.goalPin { top: -28px; }
+.midPin { top: 48px; color: var(--secondary); }
+.rankTable { width: 100%; border-collapse: collapse; font-size: 15px; }
+.rankTable th, .rankTable td { padding: 12px 0; border-top: .5px solid var(--line); }
+.rankTable tr:first-child > * { border-top: 0; }
+.rankTable th { text-align: left; font-weight: 400; }
+.rankTable td { text-align: right; font-weight: 600; }
+.selectedRank > * { color: var(--accent); font-weight: 700; }
+.hint { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.error, .errors { margin: 12px 0 0; color: var(--danger); font-size: 13px; line-height: 1.6; }
+.errors { padding-left: 18px; }
+.exclusionNote { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.demoNote { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
+.assumptionGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.assumptionGrid label { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: 12px; }
+.assumptionGrid input { width: 100%; }
+.policyTable { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+.policyTable th, .policyTable td { padding: 10px 4px; border-bottom: .5px solid var(--line); text-align: left; }
+.policyTable th { font-weight: 600; }
+.policyTable thead { color: var(--muted); font-size: 12px; }
+.policyTable td:last-child, .policyTable thead th:last-child { text-align: right; }
+.policyTable small { display: block; color: var(--muted); font-size: 11px; }
+.formula { margin-top: 18px; font-size: 13px; color: var(--secondary); line-height: 1.6; }
+.formula summary { color: var(--accent); font-weight: 600; cursor: pointer; }
+.formula p { margin: 10px 0 0; }
+.settingsActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.applyButton { border: 0; border-radius: 99px; padding: 10px 20px; background: var(--button-bg); color: var(--on-button); font: inherit; font-size: 14px; cursor: pointer; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.bottomNav { position: sticky; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); color: var(--muted); }
-.bottomNav :is(button, a) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-decoration: none; font-size: 10px; }
-.bottomNav button:disabled { opacity: 1; }
-.bottomNav svg { width: 21px; height: 21px; }
-.bottomNav .activeNav { color: var(--accent); }
-
-/* PC에서는 파란 헤더와 메뉴를 가로로 쓰고, 탭의 주요 카드를 2열로 배치한다. */
-@media (min-width: 768px) {
-  .page { width: calc(100% - 48px); max-width: 1200px; min-height: calc(100dvh - 48px); margin: 24px auto; background: transparent; }
-  .bottomNav { order: -1; top: 16px; bottom: auto; margin-bottom: 20px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 16px; }
-  .bottomNav :is(button, a) { flex-direction: row; gap: 8px; font-size: 13px; }
-  .header { padding: 26px 30px; border-radius: 20px; }
-  .headerWeather { right: 30px; }
-  .headerGpa { max-width: 420px; }
-  .content { padding: 22px 0 30px; }
-  .tabs { max-width: 500px; }
-  .tabs button { min-height: 38px; font-size: 14px; }
-  .recordGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; }
-  .plannerGrid { grid-template-columns: minmax(260px, .8fr) minmax(0, 1.3fr); gap: 20px; }
-  .predictorGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-  .column { gap: 20px; }
-  .card { padding: 24px; }
-  .card h2 { font-size: 18px; }
-  .courseText h3 { font-size: 15px; }
-  .courseRow, .planRow { padding: 18px 0; }
-  .assumptionGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 좁은 화면에서는 입력·결과 카드를 위아래로 배치한다. */
+@media (min-width: 900px) {
+  .page { max-width: 1120px; }
+  .header { --px: 40px; }
+  .content { padding: 20px 40px 56px; }
+  .recordGrid, .plannerGrid, .predictorGrid { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; }
 }
-
 @media (max-width: 359px) {
-  .card { padding: 18px 14px; }
-  .planRow { grid-template-columns: minmax(0, 1fr) 38px 68px; gap: 6px; }
-  .gradeControl select { width: 66px; }
-  .lockButton { padding: 6px 4px; }
+  .card { padding-right: 16px; padding-left: 16px; }
+  .planRow { grid-template-columns: minmax(0, 1fr) auto 78px; column-gap: 6px; }
+  .courseText h3 { font-size: 14px; }
+  .gradeControl small { font-size: 11px; }
+  .lockButton { padding: 6px 8px; font-size: 12px; }
   .inputRow { gap: 6px; }
-  .fraction input { width: 52px; }
+  .inputRow > label { font-size: 14px; }
+  .fraction input { width: 50px; padding-right: 8px; padding-left: 8px; }
+  .semesterHeading p { width: 100%; margin-top: 4px; text-align: right; }
 }
+:global(html[data-theme="dark"]) .tabs { background: var(--soft); }
+:global(html[data-theme="dark"]) .header { background-image: linear-gradient(180deg, #060C22, #122550) !important; }

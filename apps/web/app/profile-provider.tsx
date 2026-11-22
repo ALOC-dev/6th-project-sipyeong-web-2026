@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_PROFILE, validateProfile } from "./profile-model";
+import { DEFAULT_PROFILE, validateProfile, clampGraduationYear } from "./profile-model";
 import type { StudentProfile } from "./profile-model";
 
 type ProfileContextValue = {
@@ -19,12 +19,10 @@ export function StudentProfileProvider({ children, initialProfile = DEFAULT_PROF
 }) {
   const [storedProfile, setProfile] = useState<StudentProfile>(() => ({ ...initialProfile }));
   // 월 필드가 없었던 이전 화면의 메모리 상태도 2월로 읽는다.
-  // 입학+3년보다 이른 이전 선택값은 새 선택 범위의 시작 연도로 맞춘다.
-  const previousYear = Number.isInteger(storedProfile.graduationYear)
-    ? storedProfile.graduationYear : storedProfile.admissionYear + 4;
+  // 예전의 긴 졸업 시기 선택값도 현재 표시 범위 안으로 맞춘다.
   const profile: StudentProfile = {
     ...storedProfile,
-    graduationYear: Math.max(previousYear, storedProfile.admissionYear + 3),
+    graduationYear: clampGraduationYear(storedProfile.admissionYear, storedProfile.graduationYear),
     graduationMonth: storedProfile.graduationMonth ?? 2,
   };
   function updateProfile(next: StudentProfile) {

@@ -4,6 +4,17 @@ import type { RecordedCourse } from "./grades/grade-utils";
 // MVP에서 지원하는 학과와 입학연도 선택지를 한 곳에서 관리한다.
 export const SUPPORTED_DEPARTMENT = "컴퓨터과학부" as const;
 export const ADMISSION_YEARS = [2026, 2025, 2024, 2023, 2022] as const;
+// 서비스에서 표시하는 졸업 시기 범위다. 학교의 공식 최대 재학연한을 정의하는 값은 아니다.
+export const MIN_GRADUATION_YEAR_OFFSET = 3;
+export const MAX_GRADUATION_YEAR_OFFSET = 12;
+
+// 이전 선택값이나 입학연도 변경으로 선택 범위를 벗어나면 양 끝 연도로 맞춘다.
+export function clampGraduationYear(admissionYear: number, graduationYear: number) {
+  const year = Number.isInteger(graduationYear) ? graduationYear : admissionYear + 4;
+  return Math.max(admissionYear + MIN_GRADUATION_YEAR_OFFSET,
+    Math.min(admissionYear + MAX_GRADUATION_YEAR_OFFSET, year));
+}
+
 export type GraduationMonth = 2 | 8;
 export type StudentProfile = {
   department: typeof SUPPORTED_DEPARTMENT;
@@ -47,9 +58,9 @@ export function getEngineeringRequiredCredits(profile: StudentProfile) {
 export function validateProfile(profile: StudentProfile): string | null {
   if (profile.department !== SUPPORTED_DEPARTMENT) return "현재는 컴퓨터과학부만 지원해요.";
   if (!ADMISSION_YEARS.some((year) => year === profile.admissionYear)) return "입학연도를 다시 선택해주세요.";
-  // '입학 3년 뒤부터' 선택한다. 예: 2024학번은 2027년 2월부터 가능하다.
-  if (!Number.isInteger(profile.graduationYear) || profile.graduationYear < profile.admissionYear + 3 || profile.graduationYear > 9999) {
-    return "졸업 예정 시기는 입학연도에서 3년 뒤부터 선택해주세요.";
+  // 선택지와 저장 검증에 같은 3~12년 범위를 사용한다.
+  if (!Number.isInteger(profile.graduationYear) || profile.graduationYear < profile.admissionYear + MIN_GRADUATION_YEAR_OFFSET || profile.graduationYear > profile.admissionYear + MAX_GRADUATION_YEAR_OFFSET) {
+    return `졸업 예정 시기는 입학연도에서 ${MIN_GRADUATION_YEAR_OFFSET}~${MAX_GRADUATION_YEAR_OFFSET}년 뒤 사이로 선택해주세요.`;
   }
   if (profile.graduationMonth !== 2 && profile.graduationMonth !== 8) {
     return "졸업 예정월은 2월 또는 8월로 선택해주세요.";
@@ -74,11 +85,10 @@ export function getEngineeringStatus(profile: StudentProfile, courses: AreaCours
   };
 }
 
-// 처음에는 입학+3년부터 입학+20년까지 표시하고 기존 선택값이 더 늦으면 포함한다.
-// 검증에서는 +20년을 졸업 한도로 사용하지 않는다.
-export function getGraduationYears(admissionYear: number, selectedYear = admissionYear + 4) {
-  const first = admissionYear + 3;
-  const last = Math.max(admissionYear + 20, selectedYear);
+// 입학+3년부터 입학+12년까지 10개 연도만 표시한다.
+export function getGraduationYears(admissionYear: number) {
+  const first = admissionYear + MIN_GRADUATION_YEAR_OFFSET;
+  const last = admissionYear + MAX_GRADUATION_YEAR_OFFSET;
   return Array.from({ length: last - first + 1 }, (_, index) => first + index);
 }
 
@@ -87,8 +97,8 @@ export function formatGraduationPeriod(profile: Pick<StudentProfile, "graduation
 }
 
 // 같은 연도 안에서 2월, 8월 순서로 선택지를 만든다.
-export function getGraduationOptions(admissionYear: number, selectedYear?: number) {
-  return getGraduationYears(admissionYear, selectedYear).flatMap((year) =>
+export function getGraduationOptions(admissionYear: number) {
+  return getGraduationYears(admissionYear).flatMap((year) =>
     ([2, 8] as const).map((month) => ({
       year, month, value: `${year}-${String(month).padStart(2, "0")}`,
       label: formatGraduationPeriod({ graduationYear: year, graduationMonth: month }),

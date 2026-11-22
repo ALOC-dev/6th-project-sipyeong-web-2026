@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "./theme-provider";
 import { StudentProfileProvider } from "./profile-provider";
 import { GradePlanProvider } from "./grade-plan-provider";
+import { AppShell } from "./app-shell";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -23,15 +13,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ko">
       <body className="min-h-full flex flex-col">
         {/* 모든 페이지를 감싸므로 이동·새로고침 후에도 공통 테마를 적용한다. */}
         <ThemeProvider>
           <StudentProfileProvider>
-            <GradePlanProvider>{children}</GradePlanProvider>
+            <GradePlanProvider><AppShell>{children}</AppShell></GradePlanProvider>
           </StudentProfileProvider>
         </ThemeProvider>
       </body>

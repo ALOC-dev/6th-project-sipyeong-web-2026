@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { SAMPLE_GRADE_FILE } from "../grade-file-info";
+import { AppIcon as Icon } from "../app-icon";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
 import { useStudentProfile } from "../profile-provider";
@@ -18,38 +19,6 @@ type SelectedFiles = Record<FileKind, File | null>;
 
 // 현재는 예시 제한이다. API 연결 시 백엔드의 허용 용량과 맞춘다.
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-// 같은 SVG 컴포넌트에 경로만 전달해 메뉴와 파일 아이콘을 재사용한다.
-const iconPaths = {
-  home: "m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9",
-  checklist: "m3 6 1 1 2-2M9 6h12M3 12l1 1 2-2M9 12h12M3 18l1 1 2-2M9 18h12",
-  award: "M8 14 6 22l6-3 6 3-2-8M17 8a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z",
-  road: "M5 3v5c0 5 14 3 14 8v5M2 3h6M16 21h6M12 7v2M12 13v2",
-  chart: "M4 20h17M7 16v-5M12 16V5M17 16V8",
-  user: "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21v-2a7 7 0 0 1 14 0v2",
-  file: "M14 3H6v18h12V7l-4-4ZM14 3v5h4",
-  upload: "M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5",
-};
-
-type IconName = keyof typeof iconPaths;
-
-function Icon({ name }: { name: IconName }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={iconPaths[name]} />
-    </svg>
-  );
-}
-
-// 구현된 홈·학점·내 정보는 링크로 연결하고, 나머지 메뉴는 비활성화한다.
-const navigation: { label: string; icon: IconName; href?: string }[] = [
-  { label: "홈", icon: "home", href: "/" },
-  { label: "졸업요건", icon: "checklist" },
-  { label: "디그리", icon: "award" },
-  { label: "로드맵", icon: "road" },
-  { label: "학점", icon: "chart", href: "/grades" },
-  { label: "내 정보", icon: "user", href: "/my" },
-];
 
 // 파일 종류별 문구·허용 확장자·다운로드 안내를 한곳에서 관리한다.
 // 팝업은 선택된 종류의 설정만 읽으므로 Excel과 PDF가 함께 표시되지 않는다.
@@ -172,11 +141,20 @@ function UploadPanel({
   );
 }
 
-export default function MyPage() {
+function MyPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedUpload = searchParams.get("upload");
+  const uploadFromUrl: FileKind | null = requestedUpload === "grades" || requestedUpload === "timetable" ? requestedUpload : null;
   const { resetPlan } = useGradePlan();
   const { profile: studentProfile, updateProfile, resetProfile } = useStudentProfile();
   const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  function closeProfileEditor() {
+    setIsProfileEditing(false);
+    // 편집 화면을 닫고 원래 변경 버튼으로 키보드 포커스를 돌려준다.
+    requestAnimationFrame(() => profileButtonRef.current?.focus());
+  }
 
   // 중복 요청을 막고, 실패했을 때 현재 화면에서 다시 시도할 수 있도록 관리한다.
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -193,7 +171,9 @@ export default function MyPage() {
   const [files, setFiles] = useState<SelectedFiles>({ grades: null, timetable: null });
 
   // null: 팝업 닫힘 / grades: 성적만 표시 / timetable: 수강신청확인서만 표시.
-  const [activeUpload, setActiveUpload] = useState<FileKind | null>(null);
+  // 바로가기 URL로 진입해도 같은 파일 선택 UI를 사용한다.
+  const [selectedUpload, setActiveUpload] = useState<FileKind | null>(null);
+  const activeUpload = uploadFromUrl ?? selectedUpload;
   const activeInfo = activeUpload ? uploadInfo[activeUpload] : null;
 
   useEffect(() => {
@@ -219,6 +199,16 @@ export default function MyPage() {
     // 닫기 버튼과 X 버튼이 같은 종료 동작을 사용한다.
     // 실제 상태 초기화는 dialog의 onClose에서 처리해 Esc 종료도 지원한다.
     uploadDialogRef.current?.close();
+  }
+
+  function handleUploadClosed() {
+    setActiveUpload(null);
+    if (uploadFromUrl) {
+      // 닫은 뒤에도 URL이 남아 다시 열리지 않게 upload 매개변수만 제거한다.
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("upload");
+      router.replace(next.size ? `/my?${next}` : "/my", { scroll: false });
+    }
   }
 
   async function handleLogout() {
@@ -290,14 +280,14 @@ export default function MyPage() {
     curriculumYear: `${studentProfile.admissionYear}학년도`,
     engineering: studentProfile.engineeringCertification ? "공학인증 대상" : "공학인증 비대상",
   };
-  const savedGrade = {
-    name: "성적조회_2026-1.xlsx",
-    appliedAt: "10.31",
-    courseCount: 27,
-  };
+  // 사이드바의 반영일과 같은 공통 파일 정보를 표시한다.
+  const savedGrade = SAMPLE_GRADE_FILE;
 
   return (
     <main className={styles.page}>
+      {/* 공통 사이드바를 유지하고 내 정보 본문 안에서만 화면을 전환한다.
+          원래 화면은 숨겨 두므로 선택한 Excel/PDF 파일 상태도 유지된다. */}
+      <div className={styles.overview} hidden={isProfileEditing}>
       <header className={styles.header}>
         <p className={styles.eyebrow}>{savedGrade.appliedAt} 성적표 반영</p>
         <h1>내 정보</h1>
@@ -311,7 +301,7 @@ export default function MyPage() {
             <p>{profile.admissionYear}, {profile.curriculumYear} 교육과정, {profile.engineering} · {formatGraduationPeriod(studentProfile)} 졸업 예정</p>
           </div>
           {/* 기존 화면 위에 변경 창을 열어 선택해 둔 업로드 파일을 유지한다. */}
-          <button type="button" className={styles.changeButton} onClick={() => setIsProfileEditing(true)}>변경</button>
+          <button type="button" ref={profileButtonRef} className={styles.changeButton} onClick={() => setIsProfileEditing(true)}>변경</button>
         </div>
       </header>
 
@@ -367,14 +357,11 @@ export default function MyPage() {
             <strong>저장 위치</strong>
             <span className={styles.settingValue}>이 기기</span>
           </div>
-        </section>
-
-        {/* 흰색 설정 section 밖에 배치해 페이지 배경 위에 표시한다.
-            logoutArea가 PC의 두 열 전체를 사용하므로 화면 가운데에 정렬된다. */}
+          {/* 설정 카드의 마지막 행에 로그아웃과 오류 안내를 함께 표시한다. */}
         <div className={styles.logoutArea}>
             <button
               type="button"
-              className={styles.logoutButton}
+              className={`${styles.settingRow} ${styles.logoutButton}`}
               onClick={handleLogout}
               disabled={isLoggingOut}
               aria-busy={isLoggingOut}
@@ -388,27 +375,22 @@ export default function MyPage() {
             </p>
           )}
         </div>
+        </section>
+
+
       </div>
 
-      <nav className={styles.bottomNav} aria-label="주 메뉴">
-        {navigation.map((item) => item.href ? (
-          <Link key={item.label} href={item.href} className={item.href === "/my" ? styles.activeNav : undefined} aria-current={item.href === "/my" ? "page" : undefined}>
-            <Icon name={item.icon} /><span>{item.label}</span>
-          </Link>
-        ) : (
-          <button key={item.label} type="button" disabled><Icon name={item.icon} /><span>{item.label}</span></button>
-        ))}
-      </nav>
+      </div>
 
       {/* 닫으면 편집 복사본만 사라지고, 적용했을 때만 공유 프로필을 갱신한다. */}
-      {isProfileEditing && <ProfileEditor profile={studentProfile} onSave={updateProfile} onClose={() => setIsProfileEditing(false)} />}
+      {isProfileEditing && <ProfileEditor profile={studentProfile} onSave={updateProfile} onClose={closeProfileEditor} />}
 
       {/* native dialog는 배경 클릭 방지, 팝업 안 포커스 이동, Esc 종료를 지원한다. */}
       <dialog
         ref={uploadDialogRef}
         className={styles.uploadDialog}
         aria-labelledby="upload-dialog-title"
-        onClose={() => setActiveUpload(null)}
+        onClose={handleUploadClosed}
       >
         <div className={styles.dialogHeading}>
           <h2 id="upload-dialog-title">{activeInfo?.dialogTitle ?? "파일 업데이트"}</h2>
@@ -435,4 +417,10 @@ export default function MyPage() {
       </dialog>
     </main>
   );
+}
+
+
+// URL 검색 매개변수를 읽는 영역을 감싸 정적 빌드도 지원한다.
+export default function MyPage() {
+  return <Suspense fallback={<p>내 정보를 불러오는 중이에요.</p>}><MyPageContent /></Suspense>;
 }

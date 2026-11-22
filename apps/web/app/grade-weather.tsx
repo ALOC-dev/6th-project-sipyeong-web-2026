@@ -1,3 +1,4 @@
+import styles from "./grade-weather.module.css";
 import { getLastStudySemester } from "./profile-model";
 import type { GraduationMonth } from "./profile-model";
 import { summarize } from "./grades/grade-utils";
@@ -18,21 +19,17 @@ export function getWeatherType(gpa: number | null): WeatherType {
   return WEATHER_BANDS.find((band) => gpa >= band.minimum)!.type;
 }
 
+// 도움말·홈·학점 그래프가 HTML 원본의 같은 도형을 사용한다.
 export function WeatherIcon({ type, tone = "card" }: { type: WeatherType; tone?: "hero" | "card" }) {
-  const hero = tone === "hero";
   const labels: Record<WeatherType, string> = { sunny: "맑음", partly: "구름 조금", cloudy: "흐림", rain: "비", pending: "성적 미확정" };
-  return <svg viewBox="0 0 32 32" fill="none" role="img" aria-label={labels[type]}>
-    {(type === "sunny" || type === "partly") && <g stroke="#FFD15C" strokeWidth="2" strokeLinecap="round">
-      <circle cx="15" cy="13" r="5" fill="#FFD15C" />
-      <path d="M15 2v3M15 21v3M4 13h3M23 13h3m-19-8 2 2m12 12 2 2M7 21l2-2M21 7l2-2" />
-    </g>}
-    {(type === "partly" || type === "cloudy" || type === "rain") && <path transform={type === "rain" ? "translate(0 -4)" : undefined}
-      d="M8 27a5 5 0 0 1-1-10 7 7 0 0 1 13-2 6 6 0 1 1 3 12H8Z"
-      fill={hero && type !== "rain" ? "#FFFFFF" : "#C4D0DE"} />}
-    {type === "rain" && <path d="m10 26-1 3m8-3-1 3m8-3-1 3" stroke="#8CCEFF" strokeWidth="2" strokeLinecap="round" />}
-    {type === "pending" && <g stroke={hero ? "currentColor" : "var(--muted)"} opacity=".6">
-      <circle cx="16" cy="16" r="10" strokeDasharray="3 3" /><path d="M12 16h8" />
-    </g>}
+  const sun = <><circle cx="12" cy="12" r="4.6" fill="#FFC83D" /><path d="M12 2.6v2M12 19.4v2M2.6 12h2M19.4 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M5.4 18.6l1.4-1.4M17.2 6.8l1.4-1.4" stroke="#FFC83D" strokeWidth="2" strokeLinecap="round" /></>;
+  const moon = <path fill="#F1E7C8" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />;
+  const cloud = "M7 19h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.2A3.4 3.4 0 0 0 7 19z";
+  return <svg className={`${styles.icon} ${tone === "hero" ? styles.hero : styles.card}`} viewBox="0 0 24 24" fill="none" role="img" aria-label={labels[type]}>
+    {(type === "sunny" || type === "partly") && <g transform={type === "partly" ? "translate(-1.5 -2.5) scale(.78)" : undefined}><g className={styles.day}>{sun}</g><g className={styles.night}>{moon}</g></g>}
+    {(type === "partly" || type === "cloudy" || type === "rain") && <path d={cloud} transform={type === "partly" ? "translate(1.5 1)" : type === "rain" ? "translate(0 -3.5)" : "translate(0 -1)"} fill="var(--weather-cloud)" />}
+    {type === "rain" && <path d="M9 18.5l-1 3M13 18.5l-1 3M17 18.5l-1 3" stroke="#8CC8FF" strokeWidth="2" strokeLinecap="round" />}
+    {type === "pending" && <g stroke="currentColor" opacity=".6"><circle cx="12" cy="12" r="8" strokeDasharray="2 3" /><path d="M9 12h6" /></g>}
   </svg>;
 }
 
