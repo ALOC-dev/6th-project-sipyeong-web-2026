@@ -1,0 +1,67 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "시평: 프론트 + 백엔드 실행",
+      "dependsOn": [
+        "시평: 백엔드 실행",
+        "시평: 프론트 실행"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "시평: 백엔드 실행",
+      "type": "shell",
+      "command": "npm",
+      "windows": {
+        "command": "npm.cmd"
+      },
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PORT": "3003"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "시평: 프론트 실행",
+      "type": "shell",
+      "command": "npm",
+      "windows": {
+        "command": "npm.cmd"
+      },
+      "args": [
+        "run",
+        "dev",
+        "-w",
+        "@sipyeong/web",
+        "--",
+        "-H",
+        "127.0.0.1",
+        "-p",
+        "3001"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "SIPYEONG_API_ORIGIN": "http://127.0.0.1:3003"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
