@@ -11,9 +11,12 @@ import { ProfileStore } from './profile.store';
 const unverifiedCurriculum = {
   code: 'CURRICULUM_POLICY_UNKNOWN', message: '입력한 교육과정 연도의 적용 여부를 확인할 수 없습니다.',
 };
+const invalidCurriculum = {
+  code: 'CURRICULUM_SELECTION_REQUIRED', message: '저장된 교육과정 연도가 적용 기준과 다릅니다. 적용 교육과정 연도를 다시 선택해 주세요.',
+};
 
-function envelope<T>(data: T, warn = false) {
-  return { data, meta: { requestId: randomUUID(), ...(warn && { warnings: [unverifiedCurriculum] }) } };
+function envelope<T>(data: T, warning?: typeof unverifiedCurriculum) {
+  return { data, meta: { requestId: randomUUID(), ...(warning && { warnings: [warning] }) } };
 }
 
 @Controller()
@@ -29,7 +32,7 @@ export class ProfileController {
     const profileCompleted = curriculumPolicy === 'known' || curriculumPolicy === 'unknown';
     return envelope(
       { userId, displayName: '학생', profile, profileCompleted, studentDataVersion },
-      curriculumPolicy === 'unknown' || curriculumPolicy === 'invalid',
+      curriculumPolicy === 'invalid' ? invalidCurriculum : curriculumPolicy === 'unknown' ? unverifiedCurriculum : undefined,
     );
   }
 
@@ -42,7 +45,7 @@ export class ProfileController {
       throw new UnprocessableEntityException({ code: 'VALIDATION_ERROR', message: '학적 정보를 확인해 주세요.' });
     }
     const { profile, studentDataVersion, curriculumPolicy } = await this.profiles.save(request.academicSession!.userId, patch);
-    return envelope({ profile, studentDataVersion }, curriculumPolicy === 'unknown');
+    return envelope({ profile, studentDataVersion }, curriculumPolicy === 'unknown' ? unverifiedCurriculum : undefined);
   }
 
   @Get('departments')
@@ -54,6 +57,11 @@ export class ProfileController {
         !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new BadRequestException({ code: 'INVALID_QUERY', message: '학과 검색 조건을 확인해 주세요.' });
     }
-    return envelope({ items: await this.profiles.departments(search?.trim() ?? '', limit) });
+    const departments = await this.profiles.departments(search?.trim() ?? '', limit);
+    return envelope({
+      items: departments.map(({ departmentId, name }) => ({ departmentId, name })),
+      curriculumRules: departments.flatMap(({ departmentId, curriculumRules }) =>
+        curriculumRules.map(rule => ({ departmentId, ...rule }))),
+    });
   }
 }

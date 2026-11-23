@@ -1,15 +1,23 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 type Cell = string | number | boolean | null;
 export interface DocumentTable { name: string; rows: Cell[][] }
+
+export class DocumentExtractorUnavailable extends Error {}
+
+function pythonExecutable() {
+  const local = resolve(__dirname, '../../../.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  return process.env.ACADEMIC_PYTHON || (existsSync(local) ? local : 'python');
+}
 
 export function extractTables(file: Buffer, format: 'xlsx' | 'pdf'): Promise<DocumentTable[]> {
   if (!file.length || file.length > 10 * 1024 * 1024) {
     throw new Error('파일 크기는 1바이트부터 10MB까지 허용됩니다.');
   }
   return new Promise((resolveTables, reject) => {
-    const child = spawn(process.env.ACADEMIC_PYTHON ?? 'python', [
+    const child = spawn(pythonExecutable(), [
       resolve(__dirname, '../../../scripts/extract-academic-document.py'), format,
     ], { windowsHide: true, timeout: 30000 });
     const chunks: Buffer[] = [];
@@ -24,11 +32,21 @@ export function extractTables(file: Buffer, format: 'xlsx' | 'pdf'): Promise<Doc
       chunks.push(chunk);
     });
     child.stderr.resume();
-    child.stdin.on('error', reject);
-    child.on('error', reject);
-    child.on('close', (code) => {
+    child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code !== 'EPIPE') reject(error);
+    });
+    child.on('error', () => reject(new DocumentExtractorUnavailable('문서 추출용 Python을 실행할 수 없습니다.')));
+    child.on('close', (code, signal) => {
+      if (code === 3) {
+        reject(new DocumentExtractorUnavailable('문서 추출용 Python 의존성이 설치되지 않았습니다.'));
+        return;
+      }
+      if (signal) {
+        reject(new Error('문서 추출 시간이 초과되었거나 처리 한도를 넘었습니다.'));
+        return;
+      }
       if (code !== 0) {
-        reject(new Error('문서를 추출하지 못했습니다. 양식과 Python 의존성을 확인하세요.'));
+        reject(new Error('파일을 읽을 수 없습니다. 포털에서 다시 내려받은 원본 파일로 시도해 주세요.'));
         return;
       }
       try {

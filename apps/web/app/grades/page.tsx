@@ -1,19 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { AppIcon } from "../app-icon";
 import { HelpButton } from "../help-button";
 import { useGradePlan } from "../grade-plan-provider";
-import { GradeWeather as Weather } from "../grade-weather";
 import { estimateFinalRank, GOALS, GRADES, validatePredictor } from "./grade-utils";
 import type { GoalGrade, Grade, PredictorForm, RankEstimate } from "./grade-utils";
 import { makePredictorForms } from "./sample-data";
 import { getRelativeExclusion, getRelativeSegments } from "./relative-policy";
-import { HistoryChart } from "./history-chart";
-import { GradesHeader } from "./grades-header";
 import { GradesHelpDialog } from "./grades-help-dialog";
 import type { GradesHelpKind } from "./grades-help-dialog";
 import { PredictorSettings, WEIGHT_FIELDS } from "./predictor-settings";
+import { GradeRecords } from "./grade-records";
 import styles from "./page.module.css";
 
 const TABS = [{ id: "record", label: "성적 기록" }, { id: "planner", label: "플래너" }, { id: "predictor", label: "예측기" }] as const;
@@ -47,11 +44,8 @@ function ScoreRow({ label, scoreKey, maxKey, form, onChange }: {
 }
 
 export default function GradesPage() {
-  // 목표·고정 성적·누적 평점은 홈과 공유한다. 화면에 별도 예시 수치를 적지 않는다.
-  const { data, previous, semesterSummaries, currentCredits, target, locks, setTarget, setLocks, plan, forecast } = useGradePlan();
+  const { data, previous, target, locks, setTarget, setLocks, plan, forecast } = useGradePlan();
   const [tab, setTab] = useState<Tab>("record");
-  const [chartMode, setChartMode] = useState<"gpa" | "credits">("gpa");
-  const [semesterIndex, setSemesterIndex] = useState(data.history.length - 1);
   const [courseId, setCourseId] = useState(data.currentCourses.find((course) => course.id === "network")?.id ?? data.currentCourses[0]?.id ?? "");
   const [forms, setForms] = useState(() => makePredictorForms(data.currentCourses));
   const [goals, setGoals] = useState<Record<string, GoalGrade>>({});
@@ -59,9 +53,6 @@ export default function GradesPage() {
   const [showSettings, setShowSettings] = useState(false);
   const defaults = makePredictorForms(data.currentCourses);
   const getForm = (id: string) => defaults[id] ? { ...defaults[id], ...forms[id] } : undefined;
-  const selectedIndex = Math.max(0, Math.min(semesterIndex, data.history.length - 1));
-  const semester = data.history[selectedIndex];
-  const semesterSummary = semesterSummaries[selectedIndex];
   const selectedCourse = data.currentCourses.find((course) => course.id === courseId);
   const form = getForm(courseId);
   const goal = goals[courseId] ?? "B+";
@@ -77,7 +68,7 @@ export default function GradesPage() {
   }
 
   return <main className={styles.page}>
-    <GradesHeader />
+    <header className={styles.header}><div className={styles.headerTitle}><h1>학점</h1></div></header>
     <div className={styles.content}>
       <div className={styles.tabs} role="tablist" aria-label="학점 메뉴">{TABS.map((item, index) => <button key={item.id} id={`tab-${item.id}`} type="button" role="tab" aria-selected={tab === item.id} aria-controls={`panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1} onClick={() => setTab(item.id)} onKeyDown={(event) => {
         // 키보드 방향키·Home·End로도 탭을 바꿀 수 있다.
@@ -93,32 +84,10 @@ export default function GradesPage() {
 
       {/* PC는 1.35:1 두 열, 모바일은 같은 카드를 한 열로 쌓는다. */}
       <section id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {tab === "record" && <div className={styles.recordGrid}>
-          <div className={styles.column}>
-            <section className={styles.card}>
-              <h2>{data.currentSemester} 수강 중</h2>
-              <dl className={styles.currentSummary}>
-                <div><dt>목표 평점<small>플래너 기준</small></dt><dd>{target.toFixed(2)}</dd></div>
-                <div><dt>이수 예정 학점</dt><dd>{currentCredits}학점</dd></div>
-              </dl>
-            </section>
-            <section className={styles.card}>
-              <div className={styles.cardHeading}><h2>학기별 기록<HelpButton label="학기별 기록 설명 보기" onClick={() => setHelp("history")} /></h2><div className={styles.smallTabs} role="group" aria-label="학기별 기록 표시"><button type="button" aria-pressed={chartMode === "gpa"} onClick={() => setChartMode("gpa")}>평점</button><button type="button" aria-pressed={chartMode === "credits"} onClick={() => setChartMode("credits")}>이수학점</button></div></div>
-              <HistoryChart mode={chartMode} selectedIndex={selectedIndex} />
-            </section>
-          </div>
-          {semester && semesterSummary ? <section className={styles.card}>
-            <div className={styles.semesterHeading}>
-              <button type="button" className={styles.roundButton} disabled={selectedIndex === 0} aria-label="이전 학기" onClick={() => setSemesterIndex(selectedIndex - 1)}><AppIcon name="chevron" /></button>
-              <h2>{semester.id}<Weather gpa={semesterSummary.gpa} /></h2>
-              <button type="button" className={styles.roundButton} disabled={selectedIndex === data.history.length - 1} aria-label="다음 학기" onClick={() => setSemesterIndex(selectedIndex + 1)}><AppIcon name="chevron" /></button>
-              <p>평점 <strong>{fmt(semesterSummary.gpa)}</strong>, {semesterSummary.earnedCredits}학점</p>
-            </div>
-            {semester.courses.map((course) => <article key={course.id} className={`${styles.courseRow} ${!course.valid ? styles.excluded : ""}`}>
-              <div className={styles.courseText}><h3>{course.name}</h3><p>{course.category} {course.credits}학점{course.retake ? ", 재수강" : ""}{!course.valid ? " · 대체 전 성적, 집계 제외" : course.grade === "P" ? " · 평점 제외" : ""}</p></div><strong className={styles.courseGrade}>{course.grade}</strong>
-            </article>)}
-          </section> : <section className={styles.card}><p className={styles.hint}>성적 파일을 등록하면 학기별 과목을 확인할 수 있어요.</p></section>}
-        </div>}
+        {tab === "record" && <GradeRecords />}
+        {tab !== "record" && data.source === "sample" && (
+          <p className={styles.hint}>예시 과목과 성적을 사용한 모의 계산입니다.</p>
+        )}
 
         {tab === "planner" && (data.currentCourses.length ? <div className={styles.plannerGrid}>
           <section className={styles.card}>

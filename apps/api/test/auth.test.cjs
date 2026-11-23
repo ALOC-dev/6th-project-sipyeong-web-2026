@@ -73,6 +73,8 @@ test('Kakao signup, profile persistence across sign-ins, state replay and sessio
 
   const invalidTarget = await request('login/kakao?returnTo=%2F%2Fevil.example');
   assert.equal(invalidTarget.status, 400);
+  const expiredNavigation = await request('login/kakao/callback', { headers: { Accept: 'text/html' } });
+  assert.equal(expiredNavigation.headers.get('location'), 'https://sipyeong.example/login?reason=expired');
 
   const rejected = await start();
   const rejectedCallback = 'login/kakao/callback?code=rejected&state=' + rejected.state;

@@ -1,20 +1,32 @@
 # 시평 프론트엔드
 
-Next.js App Router, React, TypeScript, CSS Modules로 구성한 홈·내 정보 화면입니다.
+Next.js App Router, React, TypeScript, CSS Modules로 구성한 로그인, 학적 정보, 성적 업로드·조회와 졸업요건을 제공합니다.
 
-## 설치·실행
+## 로컬 연동
 
-Node.js 24를 사용합니다. 저장소 루트에서 실행하세요.
+Node.js 24를 사용합니다. 저장소 루트에서 `npm ci`를 실행합니다. API 환경 파일은 `apps/api/.env`에 두고, 팀의 개발 PostgreSQL에 연결합니다. DB 연결 문자열과 카카오 키는 API 환경 파일에서 관리합니다.
+
+기존 카카오 콜백이 `http://localhost:3001/api/auth/login/kakao/callback`에 등록된 개발 환경에서는 브라우저가 Next.js의 3001번 포트에 접속하고, Next.js가 `/api`를 NestJS의 3003번 포트로 전달합니다. BE의 `WEB_ORIGIN`은 `http://localhost:3001`이어야 합니다. 등록된 카카오 콜백 URI와 `KAKAO_REDIRECT_URI`를 일치시킵니다.
+
+VS Code에서 저장소 루트 폴더를 엽니다. `Ctrl+Shift+P`에서 **Tasks: Run Task**를 선택하고 **시평: 프론트 + 백엔드 실행**을 실행합니다. 종료할 때는 **Tasks: Terminate Task**에서 두 서버 작업을 종료합니다.
+
+터미널에서 직접 실행하려면 PowerShell 창 두 개를 사용합니다.
 
 ```powershell
-npm ci
-npm run dev:web
+# API
+$env:PORT = '3003'
+npm run dev
 ```
 
-- 홈: http://localhost:3000
-- 내 정보: http://localhost:3000/my
+```powershell
+# 프론트
+$env:SIPYEONG_API_ORIGIN = 'http://127.0.0.1:3003'
+npm run dev -w @sipyeong/web -- -H 127.0.0.1 -p 3001
+```
 
-개발과 빌드는 Webpack을 사용합니다. 초기 Windows 환경에서 네이티브 SWC를 사용할 수 없어 Turbopack 실행이 실패했던 점을 고려한 설정입니다.
+브라우저에서 `http://localhost:3001/api/health`의 200 응답을 확인하고 `http://localhost:3001/`에서 카카오 로그인을 시작합니다. 신규 사용자는 학적 정보를 저장한 뒤 성적표 XLSX를 올립니다. 등록된 사용자는 홈에서 학점 기록을 열거나 내 정보에서 파일을 다시 올릴 수 있습니다.
+
+업로드 검증 전 [업로드 안내](../../docs/academic-upload.md)의 Python 환경 설정과 [DB 마이그레이션](../api/prisma/README.md)을 적용합니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 로그인 설정은 [카카오 인증](../../docs/kakao-auth.md)을 참고합니다.
 
 ## 검증
 
@@ -37,12 +49,6 @@ npm run build
 - 성적 Excel 및 수강신청확인서 PDF의 개별 파일 선택 팝업
 - 파일 확장자·용량 사전 검사, 선택 취소
 - 인증 API의 세션 조회·CSRF 토큰을 사용하는 로그아웃 요청 코드
-
-## API 연결 전의 예시 데이터
-
-학적 정보, 평점·졸업요건, 추천 과목, 마이크로디그리, 기존 성적표 반영 내역은 화면 확인용 예시입니다. 선택한 파일은 브라우저 메모리에만 보관하며 실제 파싱·업로드는 연결 전입니다. 파일 업로드 제한 10MB도 백엔드 계약에 맞춰 확인할 예시 값입니다.
-
-로그아웃은 `/api/auth/session` 및 `/api/auth/logout`을 호출하도록 작성돼 있습니다. 실제 인증 검증에는 해당 백엔드 브랜치의 환경 설정, 같은 Origin의 `/api` 프록시, `/login` 화면 연결이 필요합니다. 현재 main의 백엔드 초기 설정만으로는 전체 인증 흐름을 실행할 수 없습니다.
 
 ## 주요 파일
 

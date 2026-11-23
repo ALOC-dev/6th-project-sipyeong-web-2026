@@ -1,47 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { loadAccount, type CurriculumRule } from "../academic-account";
+import { TimetableTermSelect, uploadInfo } from "../academic-upload";
+import { change, errorMessage, isStale, requiresLogin, uploadErrorMessage, uploadFiles, validateFile } from "../api-client";
+import type { Department, FileKind, Profile, Warning } from "../api-client";
+import { useApi } from "../use-api";
 import { pretendard } from "../fonts/pretendard";
 import { WeatherIcon } from "../weather-icon";
+import { ProfileForm, type ProfileChanges } from "./profile-form";
 import styles from "./page.module.css";
 
-type Row = { name: string; meta: string; division: string; flag?: boolean };
-
-const FILE_TYPES = /\.(xlsx|xls|csv|pdf)$/i;
-const YEARS = ["2026", "2025", "2024", "2023", "2022"];
-const SEMESTERS = ["2026-2", "2026-1", "2025-2", "2025-1", "2024-2", "2024-1"];
-const GRADES = ["A+", "A0", "B+", "B0", "C+", "C0", "D+", "D0", "F", "P"];
-const ABEEK = [
-  "컴퓨터과학부 신입생은 심화프로그램에 자동으로 소속됩니다",
-  "심화프로그램은 일반 졸업요건과 공학교육인증 요건을 모두 충족해야 합니다",
-  "비인증 일반프로그램으로 전환을 승인받았거나 편입 또는 전과 후 일반프로그램에 배정되면 일반 졸업요건이 적용됩니다",
-  "복수전공은 전환 신청 사유이며 학교 승인 후 소속이 바뀝니다",
-];
-const NOW_GUIDE = ["포털에서 수강신청확인서 조회", "PDF로 저장", "위 파일 선택에서 성적표와 함께 선택"];
-const GUIDE = ["포털 로그인 후 대학행정", "수업/성적에서 성적표 조회", "엑셀 또는 PDF로 저장", "저장한 파일 선택"];
 const STARS = [[14, 12], [33, 30], [67, 10], [86, 34], [48, 22], [24, 62], [74, 56]];
+const button = `${styles.cta} ${styles.tap}`;
+const secondaryButton = `${button} ${styles.tint}`;
+const chevron = <svg className={styles.ico} viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>;
 
-const CATALOG = new Map<string, string>([
-  ...["컴퓨터과학개론", "자료구조", "알고리즘", "컴퓨터구조", "운영체제 기초", "이산수학", "유닉스프로그래밍", "운영체제", "캡스톤디자인"].map((n) => [n, "전공필수"] as const),
-  ...["대학영어", "미적분학", "일반물리", "선형대수"].map((n) => [n, "교양필수"] as const),
-  ...["철학의 이해", "한국사의 이해", "논리와 사고", "현대미술의 이해", "도시와 환경", "글쓰기와 비평", "진로탐색과 설계", "빅데이터처리", "도시와 건축", "서양미술사"].map((n) => [n, "교양선택"] as const),
-  ...["이산구조 기초", "객체지향프로그래밍", "확률과통계", "프로그래밍언어론", "웹프로그래밍", "데이터베이스", "소프트웨어공학", "통계학입문", "컴퓨터그래픽스", "데이터통신", "데이터중심 머신러닝", "인공지능", "기계학습", "데이터마이닝", "컴퓨터네트워크"].map((n) => [n, "전공선택"] as const),
-  ["공학경제", "공학소양"],
-]);
-
-const SAMPLE: Row[] = [
-  { name: "미적분학", meta: "3학점, 2026-1 A0, 재수강으로 2024-1 C+ 기록 제외", division: "교양필수" },
-  { name: "진로탐색과 설계", meta: "1학점, 2024-1 P, 평점 계산 제외", division: "교양선택" },
-  { name: "빅데이터처리", meta: "3학점, 2025-2 A+, 빅데이터 초급 인정 과목", division: "교양선택" },
-  { name: "컴퓨터과학개론", meta: "3학점, 2024-1 A+", division: "전공필수" },
-];
-
-function SkyHead({ step, title, back }: { step: number; title: string; back: ReactNode }) {
+function SkyHead({ step, title, back }: { step?: number; title: string; back: ReactNode }) {
   return (
-    <div className={styles.skyhead}>
+    <div className={step ? styles.skyhead : `${styles.skyhead} ${styles.editHead}`}>
       <div className={styles.stars} aria-hidden="true">
         {STARS.map(([left, top]) => <i key={`${left}-${top}`} style={{ left: `${left}%`, top: `${top}%` }} />)}
       </div>
@@ -49,239 +28,238 @@ function SkyHead({ step, title, back }: { step: number; title: string; back: Rea
       {back}
       <header className={styles.lt}>
         <div>
-          <div className={styles.sub}>{step}단계</div>
+          {step && <div className={styles.sub}>{step}단계</div>}
           <h1>{title}</h1>
         </div>
       </header>
-      <div className={styles.prog}><i style={{ width: `${step * 50}%` }} /></div>
+      {step && <div className={styles.prog}><i style={{ width: `${step * 50}%` }} /></div>}
     </div>
   );
 }
 
-const CHEVRON = <svg className={styles.ico} viewBox="0 0 24 24"><path d="m15 6-6 6 6 6" /></svg>;
-
 export default function StartPage() {
-  const router = useRouter();
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [year, setYear] = useState("2024");
-  const [engineering, setEngineering] = useState(true);
-  const [mode, setMode] = useState<"file" | "hand">("file");
-  const [file, setFile] = useState<{ name: string; meta: string; ok: boolean } | null>(null);
-  const [over, setOver] = useState(false);
-  const [rows, setRows] = useState(SAMPLE);
-  const [count, setCount] = useState(27);
-  const [summary, setSummary] = useState(true);
-  const [empty, setEmpty] = useState(true);
-  const [name, setName] = useState("");
-  const [semester, setSemester] = useState(SEMESTERS[0]);
-  const [grade, setGrade] = useState(GRADES[0]);
-  const [message, setMessage] = useState({ text: "", on: false });
-
-  function toast(text: string) {
-    setMessage({ text, on: true });
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setMessage((m) => ({ ...m, on: false })), 1800);
-  }
-
-  const welcome = useEffectEvent(() => toast("카카오 계정으로 가입했습니다"));
-
-  useEffect(() => {
-    const delay = setTimeout(() => welcome(), 0);
-    return () => {
-      clearTimeout(delay);
-      clearTimeout(timer.current);
-    };
-  }, []);
-
-  function takeFile(next: File | undefined) {
-    if (!next) return;
-    const ok = FILE_TYPES.test(next.name);
-    setFile({
-      name: next.name,
-      meta: ok ? `${Math.max(1, Math.round(next.size / 1024))} KB, 27과목 인식` : "엑셀, CSV, PDF 파일만 올릴 수 있습니다",
-      ok,
-    });
-    if (ok) setEmpty(false);
-  }
-
-  function addCourse() {
-    const n = name.trim();
-    if (!n) {
-      toast("과목명을 입력하세요");
-      nameRef.current?.focus();
-      return;
-    }
-    const division = CATALOG.get(n);
-    const row = { name: n, meta: `${semester} ${grade}${grade === "P" ? ", 평점 계산 제외" : ""}`, division: division ?? "확인 필요", flag: !division };
-    if (empty) {
-      setRows([row]);
-      setCount(1);
-      setSummary(false);
-      setEmpty(false);
-    } else {
-      setRows((list) => [row, ...list]);
-      setCount((c) => c + 1);
-    }
-    setName("");
-    toast("추가했습니다");
-  }
-
-  const apply: [string, string | number][] = [[`${year}학년도 교육과정`, ""], ["졸업 최저 이수학점", 130], ["전공필수", 27], ["전공선택", 39], ["교양", 30]];
-  if (engineering) apply.push(["공학소양", 3]);
-
   return (
     <div className={`${pretendard.variable} ${styles.page}`}>
       <main className={styles.screen}>
-        {step === 1 ? (
-          <section key="start" className={styles.view}>
-            <SkyHead
-              step={1}
-              title="학과와 입학연도"
-              back={<Link href="/login" className={`${styles.back} ${styles.tap}`}>{CHEVRON}로그인</Link>}
-            />
-            <div className={styles.g2}>
-              <div className={`${styles.card} ${styles.flat}`}>
-                <div className={styles.field}>
-                  <label htmlFor="sDept">학과</label>
-                  <select id="sDept" defaultValue="컴퓨터과학부">
-                    <option>컴퓨터과학부</option>
-                    <option disabled>전자전기컴퓨터공학부 (준비 중)</option>
-                    <option disabled>통계학과 (준비 중)</option>
-                    <option disabled>경영학부 (준비 중)</option>
-                  </select>
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="sYear">입학연도</label>
-                  <select id="sYear" value={year} onChange={(e) => setYear(e.target.value)}>
-                    {YEARS.map((y) => <option key={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div className={styles.field}>
-                  <div className={styles.lr}>
-                    <b><label htmlFor="sAbeek">공학교육인증 심화프로그램</label></b>
-                    <input className={styles.sw} id="sAbeek" type="checkbox" checked={engineering} onChange={(e) => setEngineering(e.target.checked)} aria-describedby="abkNote" />
-                  </div>
-                  <ul className={styles.abk} id="abkNote">{ABEEK.map((t) => <li key={t}>{t}</li>)}</ul>
-                </div>
-              </div>
-              <div className={styles.stack}>
-                <div className={styles.card}>
-                  <div className={styles.kv}>적용되는 기준</div>
-                  <div className={styles.calc}>
-                    {apply.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}
-                  </div>
-                </div>
-                <button className={`${styles.cta} ${styles.tap}`} type="button" onClick={() => setStep(2)}>다음</button>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section key="up" className={styles.view}>
-            <SkyHead
-              step={2}
-              title="성적 입력"
-              back={<button className={`${styles.back} ${styles.tap}`} type="button" onClick={() => setStep(1)}>{CHEVRON}학과와 입학연도</button>}
-            />
-            <div className={styles.segctl} role="group" aria-label="성적 입력 방법">
-              <button type="button" aria-pressed={mode === "file"} onClick={() => setMode("file")}>성적표 파일</button>
-              <button type="button" aria-pressed={mode === "hand"} onClick={() => setMode("hand")}>직접 입력</button>
-            </div>
-            <div className={styles.g2}>
-              <div className={styles.stack}>
-                {mode === "file" ? (
-                  <div key="file" className={`${styles.stack} ${styles.subview}`}>
-                    <div className={styles.card}>
-                      <label
-                        className={over ? `${styles.drop} ${styles.over} ${styles.tap}` : `${styles.drop} ${styles.tap}`}
-                        htmlFor="file"
-                        onDragEnter={(e) => { e.preventDefault(); setOver(true); }}
-                        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-                        onDragLeave={(e) => { e.preventDefault(); setOver(false); }}
-                        onDrop={(e) => { e.preventDefault(); setOver(false); takeFile(e.dataTransfer.files[0]); }}
-                      >
-                        <input type="file" id="file" accept=".xlsx,.xls,.csv,.pdf" multiple onChange={(e) => takeFile(e.target.files?.[0])} />
-                        <span className={styles.ic}><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg></span>
-                        <b>파일 선택</b>
-                        <span className={styles.hint}>성적표 엑셀, CSV, PDF<br />수강신청확인서 PDF</span>
-                      </label>
-                      {file && (
-                        <div className={styles.file}>
-                          <span className={styles.ic}>
-                            <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /></svg>
-                          </span>
-                          <span className={styles.tx}>
-                            <b>{file.name}</b>
-                            <span className={file.ok ? undefined : styles.bad} role={file.ok ? undefined : "alert"}>{file.meta}</span>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className={styles.card}>
-                      <div className={styles.ct}><h2>성적표 파일 받는 법</h2></div>
-                      <ol className={styles.steps}>{GUIDE.map((s) => <li key={s}>{s}</li>)}</ol>
-                      <a className={`${styles.cta} ${styles.tint} ${styles.tap}`} href="https://portal.uos.ac.kr" target="_blank" rel="noopener">포털 열기</a>
-                    </div>
-                    <div className={styles.card}>
-                      <div className={styles.ct}><h2>이번 학기 수강 과목</h2></div>
-                      <p className={styles.ctext} style={{ marginBottom: 12 }}>수강 중인 과목은 성적표에 없으므로 가입할 때와 다음 학기를 추가할 때 모두 수강신청확인서 PDF로 올립니다</p>
-                      <ol className={styles.steps}>{NOW_GUIDE.map((s) => <li key={s}>{s}</li>)}</ol>
-                    </div>
-                  </div>
-                ) : (
-                  <div key="hand" className={`${styles.card} ${styles.subview}`}>
-                    <div className={`${styles.field} ${styles.first}`}>
-                      <label htmlFor="hName">과목명</label>
-                      <input
-                        ref={nameRef}
-                        type="text"
-                        id="hName"
-                        list="catalog"
-                        placeholder="과목명 검색"
-                        autoComplete="off"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                    </div>
-                    <datalist id="catalog">{[...CATALOG.keys()].map((n) => <option key={n} value={n} />)}</datalist>
-                    <div className={styles.addg}>
-                      <select aria-label="수강 학기" value={semester} onChange={(e) => setSemester(e.target.value)}>
-                        {SEMESTERS.map((s) => <option key={s}>{s}</option>)}
-                      </select>
-                      <select aria-label="성적" value={grade} onChange={(e) => setGrade(e.target.value)}>
-                        {GRADES.map((g) => <option key={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <button className={`${styles.cta} ${styles.add} ${styles.tap}`} type="button" onClick={addCourse}>추가</button>
-                  </div>
-                )}
-              </div>
-              <div className={styles.stack}>
-                {!empty && (
-                  <div className={styles.card}>
-                    <div className={styles.ct}><h2>불러온 과목</h2></div>
-                    <p className={styles.ctext}>{count}과목{summary && ", 79학점, 재수강 1과목"}</p>
-                    <div>
-                      {rows.map((r, i) => (
-                        <div key={`${r.name}-${rows.length - i}`} className={r.flag ? `${styles.urow} ${styles.flag}` : styles.urow}>
-                          <span className={styles.tx}><b>{r.name}</b><span>{r.meta}</span></span>
-                          <span className={styles.dv}>{r.division}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className={styles.dock}>
-                  <button className={`${styles.cta} ${styles.tap}`} type="button" disabled={empty} onClick={() => router.push("/")}>시작하기</button>
-                  <p className={styles.note}>성적은 내 계정에 저장됩니다</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+        <Suspense fallback={<p role="status">학적 정보를 불러오는 중…</p>}>
+          <StartContent />
+        </Suspense>
       </main>
-      <div className={message.on ? `${styles.toast} ${styles.on}` : styles.toast} role="status">{message.text}</div>
     </div>
+  );
+}
+
+function StartContent() {
+  const account = useApi(loadAccount);
+  const editing = useSearchParams().get("edit") === "1";
+
+  if (account.data) {
+    return <Onboarding
+      key={String(editing)}
+      initialProfile={account.data.me.profile}
+      initialCompleted={account.data.me.profileCompleted}
+      departments={account.data.departments}
+      curriculumRules={account.data.curriculumRules}
+      initialWarnings={account.data.warnings}
+      reload={account.reload}
+      editing={editing}
+    />;
+  }
+  return <div className={styles.card}>
+    {account.error ? <>
+      <p role="alert">{account.error}</p>
+      <button type="button" className={button} onClick={account.reload}>다시 시도</button>
+    </> : <p role="status">학적 정보를 불러오는 중…</p>}
+  </div>;
+}
+
+function Onboarding({ initialProfile, initialCompleted, departments, curriculumRules, initialWarnings, reload, editing }: {
+  initialProfile: Profile | null;
+  initialCompleted: boolean;
+  departments: Department[];
+  curriculumRules: CurriculumRule[];
+  initialWarnings: Warning[];
+  reload: () => void;
+  editing: boolean;
+}) {
+  const router = useRouter();
+  const lock = useRef(false);
+  const [step, setStep] = useState(initialCompleted && !editing ? 2 : 1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [stale, setStale] = useState(false);
+  const [warnings, setWarnings] = useState(initialWarnings);
+  const [profile, setProfile] = useState(initialProfile);
+  const [files, setFiles] = useState<Partial<Record<FileKind, File | null>>>({});
+  const [fileErrors, setFileErrors] = useState<Partial<Record<FileKind, string>>>({});
+  const [dragOverKind, setDragOverKind] = useState<FileKind | null>(null);
+  const [timetableTerm, setTimetableTerm] = useState("");
+  const [result, setResult] = useState<{ parsed: number; saved: number }>();
+  const resultHeading = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (result && step === 2) resultHeading.current?.focus();
+  }, [result, step]);
+
+  async function run(action: () => Promise<void>, message = errorMessage) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+    } catch (failure) {
+      if (requiresLogin(failure)) router.replace("/login?reason=session");
+      else {
+        setStale(isStale(failure));
+        setError(message(failure));
+      }
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
+  function finishProfile() {
+    if (editing) router.replace("/my");
+    else setStep(2);
+  }
+
+  function save(changes: ProfileChanges) {
+    if (profile && Object.keys(changes).length === 0) {
+      setError("");
+      finishProfile();
+      return;
+    }
+    void run(async () => {
+      const response = await change<{ profile: Profile }>("users/me/profile", "PATCH", {
+        expectedRevision: profile?.revision ?? 0,
+        ...changes,
+      });
+      setProfile(response.data.profile);
+      setWarnings(response.meta.warnings ?? []);
+      finishProfile();
+    });
+  }
+
+  function selectFile(kind: FileKind, file: File | null) {
+    if (lock.current) return;
+    const invalid = file ? validateFile(kind, file) : "";
+    setFileErrors((state) => ({ ...state, [kind]: invalid }));
+    setError("");
+    setResult(undefined);
+    if (!invalid) setFiles((state) => ({ ...state, [kind]: file }));
+  }
+
+  function submitFiles(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!files.grades && !files.timetable) return;
+    void run(async () => {
+      const response = await uploadFiles(files, timetableTerm);
+      setResult(response.data);
+      setFiles({});
+      setFileErrors({});
+      setTimetableTerm("");
+    }, uploadErrorMessage);
+  }
+
+  const back = step === 1
+    ? <Link className={styles.back} href={editing ? "/my" : "/login"}>{chevron}{editing ? "내 정보" : "로그인"}</Link>
+    : <button className={styles.back} type="button" disabled={busy} onClick={() => { setError(""); setStep(1); }}>
+      {chevron}학적 정보
+    </button>;
+
+  return (
+    <section className={styles.view}>
+      <SkyHead step={editing ? undefined : step}
+        title={editing ? "학적 정보 수정" : step === 1 ? "학과와 입학연도" : "성적 입력"} back={back} />
+      {warnings.map((warning) => <p className={styles.message} key={warning.code} role="status">{warning.message}</p>)}
+      {error && <p className={`${styles.message} ${styles.bad}`} role="alert">{error}</p>}
+      {step === 1 ? (
+        <ProfileForm
+          profile={profile} departments={departments} rules={curriculumRules}
+          busy={busy} stale={stale} editing={editing} onSave={save}
+        />
+      ) : (
+        <form onSubmit={submitFiles} className={styles.stack}>
+          <p className={styles.ctext}>성적표와 수강신청확인서를 각각 또는 한 번에 올릴 수 있어요. 파일당 최대 10MB입니다.</p>
+          <div className={styles.uploadGrid}>
+            {(Object.keys(uploadInfo) as FileKind[]).map((kind) => (
+              <fieldset className={styles.card} disabled={busy} key={kind}>
+                <div className={styles.field}>
+                  <h2>{uploadInfo[kind].title}</h2>
+                  <p className={styles.ctext}>{uploadInfo[kind].description}</p>
+                  <label className={dragOverKind === kind ? `${styles.drop} ${styles.dragOver}` : styles.drop}
+                    htmlFor={`start-${kind}`}
+                    onDragOver={(event) => {
+                      if (!event.dataTransfer.types.includes("Files")) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = busy ? "none" : "copy";
+                      if (!busy && dragOverKind !== kind) setDragOverKind(kind);
+                    }}
+                    onDragLeave={(event) => {
+                      if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+                      setDragOverKind(current => current === kind ? null : current);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setDragOverKind(null);
+                      if (lock.current) return;
+                      const { files: dropped } = event.dataTransfer;
+                      if (dropped.length === 1) selectFile(kind, dropped[0]);
+                      else if (dropped.length > 1) {
+                        setFileErrors(state => ({ ...state, [kind]: "파일을 한 개씩 선택해 주세요." }));
+                      }
+                    }}>
+                    <input type="file" id={`start-${kind}`} accept={uploadInfo[kind].extension}
+                      aria-label={`${uploadInfo[kind].title} ${files[kind] ? "다른 파일 선택" : "파일 선택"}`}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        if (file) selectFile(kind, file);
+                        event.currentTarget.value = "";
+                      }} />
+                    <span className={styles.ic} aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M12 16V4m-6 6 6-6 6 6M4 20h16" /></svg>
+                    </span>
+                    <b>{dragOverKind === kind ? "여기에 파일을 놓으세요" : files[kind] ? "다른 파일 선택" : "파일 선택"}</b>
+                    <span className={styles.hint}>클릭하거나 파일을 끌어다 놓으세요 · {uploadInfo[kind].extension.toUpperCase()} · 최대 10MB</span>
+                  </label>
+                  {fileErrors[kind] && <p className={styles.bad} role="alert">{fileErrors[kind]}</p>}
+                  {files[kind] && <div className={styles.selectedFile}>
+                    <span>{files[kind]?.name}</span>
+                    <button type="button" className={styles.textButton} onClick={() => selectFile(kind, null)}>선택 취소</button>
+                  </div>}
+                  {kind === "timetable" && files.timetable && (
+                    <TimetableTermSelect value={timetableTerm} onChange={setTimetableTerm} disabled={busy} />
+                  )}
+                  <details className={styles.guide}>
+                    <summary>파일 다운로드 방법</summary>
+                    <ol className={styles.steps}>{uploadInfo[kind].guide.map((item) => <li key={item}>{item}</li>)}</ol>
+                    <a href="https://portal.uos.ac.kr" target="_blank" rel="noopener">서울시립대 포털 열기</a>
+                  </details>
+                </div>
+              </fieldset>
+            ))}
+          </div>
+          {!result && <button className={button} type="submit" disabled={busy || (!files.grades && !files.timetable)}>
+            {busy ? "업로드 중…" : "파일 업로드"}
+          </button>}
+          {result ? (
+            <section className={`${styles.card} ${styles.uploadResult}`} aria-labelledby="upload-result">
+              <h2 id="upload-result" ref={resultHeading} tabIndex={-1}>파일 업로드 완료</h2>
+              <p role="status">{result.parsed}과목을 읽고 {result.saved}건을 저장했습니다.</p>
+              <div className={styles.resultActions}>
+                <Link href="/grades" className={`${button} ${styles.outline}`}>성적 확인</Link>
+                <Link href="/" className={button}>시작하기</Link>
+              </div>
+            </section>
+          ) : !busy && <Link href="/" className={secondaryButton}>나중에 입력하고 시작하기</Link>}
+        </form>
+      )}
+      {stale && <div className={styles.stack}>
+        <p className={styles.hint}>다시 불러오면 저장하지 않은 입력이 사라져요.</p>
+        <button className={button} type="button" onClick={reload}>최신 학적 정보 불러오기</button>
+      </div>}
+    </section>
   );
 }

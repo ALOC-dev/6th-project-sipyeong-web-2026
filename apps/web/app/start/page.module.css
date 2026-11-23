@@ -127,6 +127,7 @@
 
 .sub { margin-bottom: 2px; color: rgb(255 255 255 / 78%); font-size: 13px; font-weight: 600; }
 .lt h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+.editHead .lt { padding-bottom: 18px; }
 
 .prog {
   height: 8px;
@@ -139,6 +140,7 @@
 .prog i { display: block; height: 100%; border-radius: 99px; background: #fff; }
 
 .g2, .stack { display: grid; gap: 12px; }
+.uploadGrid { display: grid; grid-auto-rows: 1fr; gap: 12px; }
 
 .card {
   --cl: #c3cdd9;
@@ -147,6 +149,7 @@
   border-radius: 12px;
   background: var(--card);
 }
+.card h2 { font-size: 18px; font-weight: 700; }
 
 :global(:root[data-theme="dark"]) .card { --cl: #6e7a8b; }
 .flat { padding: 8px 20px; }
@@ -155,8 +158,9 @@
 .field + .field { border-top: 0.5px solid var(--rule); }
 .first { padding-top: 0; }
 .field label { font-size: 14.5px; font-weight: 600; }
+.field h3 { margin: 0; font-size: 16px; font-weight: 700; }
 
-.field select, .field input[type="text"] {
+.field select, .field input[type="text"], .field input[type="number"], .field input[type="date"] {
   width: 100%;
   padding: 13px 14px;
   border: none;
@@ -165,6 +169,12 @@
   font-size: 15.5px;
   font-weight: 600;
 }
+
+.scoreRow { display: grid; min-width: 0; gap: 6px; padding: 12px; border: 1px solid var(--rule); border-radius: 12px; }
+.scoreRow legend { padding-inline: 5px; color: var(--fg-2); font-size: 14px; font-weight: 600; }
+.scoreFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.scoreFields label { display: grid; gap: 6px; }
+.field > .textButton, .scoreRow > .textButton { justify-self: start; min-height: 32px; }
 
 .lr { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0; text-align: left; }
 .lr b { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; }
@@ -222,7 +232,24 @@
 }
 
 .cta:disabled { opacity: 0.4; }
-.cta.tint { margin-top: 16px; background: var(--pri-tint); color: var(--pri); }
+.cta.tint { background: var(--pri-tint); color: var(--pri); }
+.cta.outline { border: 2px solid var(--pri); padding-block: 14px; background: var(--card); color: var(--pri); }
+.uploadResult { display: grid; gap: 8px; border: 1px solid var(--pri); }
+.uploadResult p { margin: 0; color: var(--fg-2); }
+.resultActions { display: grid; gap: 10px; margin-top: 8px; }
+
+@media (min-width: 480px) {
+  .resultActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.guide { padding-block: 8px; color: var(--fg-2); }
+.guide summary { cursor: pointer; font-weight: 600; }
+.guide[open] summary { margin-bottom: 8px; }
+.guide a, .textButton { color: var(--pri); }
+.guide a { display: inline-block; margin-top: 8px; }
+.selectedFile { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.textButton { padding: 0; border: 0; background: none; text-decoration: underline; }
+.message { margin: 0 0 12px; }
+.bad { color: var(--bad); }
 .add { margin-top: 12px; }
 
 .segctl { display: flex; margin: 0 0 16px; padding: 3px; border-radius: 12px; background: var(--seg); }
@@ -248,17 +275,28 @@
 .drop {
   position: relative;
   display: grid;
+  align-content: center;
   justify-items: center;
   gap: 6px;
-  padding: 34px 16px;
-  border: 2px dashed var(--rule);
+  min-height: 136px;
+  padding: 22px 16px;
+  border: 2px dashed color-mix(in srgb, var(--pri) 58%, var(--rule));
   border-radius: 18px;
   background: var(--fill);
   text-align: center;
   cursor: pointer;
 }
 
-.drop:hover, .drop.over { border-color: var(--pri); background: var(--pri-tint); }
+.drop:hover { border-color: var(--pri); background: var(--pri-tint); }
+.drop.dragOver {
+  border-style: solid;
+  border-color: var(--pri);
+  background: var(--pri-tint);
+  color: var(--pri);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pri) 26%, transparent);
+}
+.drop > * { pointer-events: none; }
+.drop:has(input:disabled) { opacity: 0.65; cursor: default; }
 .drop:focus-within { outline: 2px solid var(--pri); outline-offset: 2px; }
 .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .drop .ic { display: grid; place-items: center; }
@@ -327,6 +365,7 @@
   .screen { width: 100%; max-width: 1120px; padding: 28px 40px 32px; }
   .skyhead { --px: 40px; margin: -28px -40px 20px; }
   .g2 { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .uploadGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .g2 > .stack { align-content: start; }
   .dock { position: static; }
   .toast { bottom: 32px; }

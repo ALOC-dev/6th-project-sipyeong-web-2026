@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-/* 첨부 HTML에서 추출한 동일한 두 폰트다. 원본과 같은 굵기 범위를 연결한다. */
-@font-face { font-family: "Pretendard"; src: url("/fonts/pretendard-regular.woff2") format("woff2"); font-weight: 100 500; font-style: normal; font-display: swap; }
-@font-face { font-family: "Pretendard"; src: url("/fonts/pretendard-bold.woff2") format("woff2"); font-weight: 600 900; font-style: normal; font-display: swap; }
-
-
 /* 모든 페이지가 공유하는 라이트 테마 색상이다.
    개별 페이지에서 같은 변수를 다시 선언하면 전역 테마가 가려지므로 여기서 관리한다. */
 :root {
@@ -71,7 +66,7 @@
 /* 본문뿐 아니라 버튼·입력창·팝업도 같은 폰트를 상속한다. */
 body {
   margin: 0; background: var(--outer); color: var(--ink);
-  --app-font: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --app-font: var(--font-pretendard), "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   font-family: var(--app-font); font-size: 16px; font-weight: 400; line-height: 1.55;
   letter-spacing: -.01em; font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere;

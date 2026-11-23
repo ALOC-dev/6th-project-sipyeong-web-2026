@@ -1,43 +1,17 @@
 "use client";
 
-import { SAMPLE_GRADE_FILE } from "../grade-file-info";
-import { AppIcon as Icon } from "../app-icon";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Icon } from "../academic-nav";
+import { loadAccount } from "../academic-account";
+import { TimetableTermSelect, uploadInfo } from "../academic-upload";
+import { change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
+import { useApi } from "../use-api";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
-import { useStudentProfile } from "../profile-provider";
-import { ProfileEditor } from "./profile-editor";
-import { useGradePlan } from "../grade-plan-provider";
-import { formatGraduationPeriod } from "../profile-model";
 
-// 화면 문구가 바뀌어도 파일 종류를 식별하는 내부 값은 유지한다.
-// grades는 성적 Excel, timetable은 수강신청확인서 PDF를 뜻한다.
-type FileKind = "grades" | "timetable";
-// 두 파일을 별도 항목으로 보관해 한쪽을 변경해도 다른 파일은 유지한다.
 type SelectedFiles = Record<FileKind, File | null>;
-
-// 현재는 예시 제한이다. API 연결 시 백엔드의 허용 용량과 맞춘다.
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-// 파일 종류별 문구·허용 확장자·다운로드 안내를 한곳에서 관리한다.
-// 팝업은 선택된 종류의 설정만 읽으므로 Excel과 PDF가 함께 표시되지 않는다.
-const uploadInfo = {
-  grades: {
-    title: "성적 Excel",
-    dialogTitle: "성적 파일 업데이트",
-    description: "전체성적조회에서 내려받은 성적 Excel 파일을 선택해주세요.",
-    extension: ".xlsx",
-    guide: ["대학행정 접속", "수업/성적 → 성적표조회", "전체성적조회 선택", "Excel 다운로드"],
-  },
-  timetable: {
-    title: "수강신청확인서 PDF",
-    dialogTitle: "수강신청확인서 PDF 등록",
-    description: "이번 학기 수강신청확인서 PDF 파일을 선택해주세요.",
-    extension: ".pdf",
-    guide: ["대학행정 접속", "수강 → 수강신청확인서", "이번 학기 수강 내역 확인", "PDF 다운로드"],
-  },
-};
 
 // 파일 선택 화면은 하나만 만들고 kind로 Excel/PDF 검사 기준을 바꾼다.
 // file은 부모가 보관하고, onSelect로 선택·취소 결과를 부모에게 전달한다.
@@ -45,10 +19,12 @@ function UploadPanel({
   kind,
   file,
   onSelect,
+  disabled,
 }: {
   kind: FileKind;
   file: File | null;
   onSelect: (file: File | null) => void;
+  disabled: boolean;
 }) {
   // 커스텀 버튼을 눌렀을 때 숨겨진 기본 파일 선택 창을 열기 위한 참조다.
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,23 +34,10 @@ function UploadPanel({
   // 파일 선택 버튼과 끌어놓기가 같은 검사 함수를 사용한다.
   // 여기서는 사용자 안내용 사전 검사만 하며 서버에서도 다시 검증해야 한다.
   function selectFile(nextFile: File | undefined) {
-    if (!nextFile) return;
-    setError("");
-
-    if (!nextFile.name.toLowerCase().endsWith(info.extension)) {
-      setError(`${info.extension} 형식의 파일을 선택해주세요.`);
-      return;
-    }
-    if (nextFile.size === 0) {
-      setError("내용이 없는 파일이에요. 다시 확인해주세요.");
-      return;
-    }
-    if (nextFile.size > MAX_FILE_SIZE) {
-      setError("10MB 이하의 파일을 선택해주세요.");
-      return;
-    }
-    // 검사를 통과한 파일만 부모 상태에 반영한다. 실제 서버 전송은 아직 없다.
-    onSelect(nextFile);
+    if (disabled || !nextFile) return;
+    const problem = validateFile(kind, nextFile);
+    setError(problem);
+    onSelect(problem ? null : nextFile);
   }
 
   return (
@@ -90,6 +53,7 @@ function UploadPanel({
         type="file"
         accept={info.extension}
         hidden
+        disabled={disabled}
         aria-label={`${info.title} 파일 선택`}
         onChange={(event) => {
           selectFile(event.currentTarget.files?.[0]);
@@ -104,6 +68,7 @@ function UploadPanel({
         onDrop={(event) => {
           // 파일을 브라우저에서 직접 여는 기본 동작을 막는다.
           event.preventDefault();
+          if (disabled) return;
           if (event.dataTransfer.files.length !== 1) {
             setError("파일을 한 개씩 선택해주세요.");
             return;
@@ -117,6 +82,7 @@ function UploadPanel({
         <button
           type="button"
           className={styles.primaryButton}
+          disabled={disabled}
           aria-describedby={error ? `${kind}-error` : undefined}
           onClick={() => inputRef.current?.click()}
         >
@@ -132,7 +98,7 @@ function UploadPanel({
             <strong>{file.name}</strong>
             <span className={styles.muted}>선택됨 · {(file.size / 1024 / 1024).toFixed(2)} MB</span>
           </div>
-          <button type="button" className={styles.textButton} onClick={() => { onSelect(null); setError(""); }}>
+          <button type="button" className={styles.textButton} disabled={disabled} onClick={() => { onSelect(null); setError(""); }}>
             선택 취소
           </button>
         </div>
@@ -141,20 +107,15 @@ function UploadPanel({
   );
 }
 
-function MyPageContent() {
+export default function MyPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedUpload = searchParams.get("upload");
-  const uploadFromUrl: FileKind | null = requestedUpload === "grades" || requestedUpload === "timetable" ? requestedUpload : null;
-  const { resetPlan } = useGradePlan();
-  const { profile: studentProfile, updateProfile, resetProfile } = useStudentProfile();
-  const [isProfileEditing, setIsProfileEditing] = useState(false);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
-  function closeProfileEditor() {
-    setIsProfileEditing(false);
-    // 편집 화면을 닫고 원래 변경 버튼으로 키보드 포커스를 돌려준다.
-    requestAnimationFrame(() => profileButtonRef.current?.focus());
-  }
+  const account = useApi(loadAccount);
+  const uploadLock = useRef(false);
+  const logoutLock = useRef(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadResult, setUploadResult] = useState("");
+  const [timetableTerm, setTimetableTerm] = useState("");
 
   // 중복 요청을 막고, 실패했을 때 현재 화면에서 다시 시도할 수 있도록 관리한다.
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -171,9 +132,7 @@ function MyPageContent() {
   const [files, setFiles] = useState<SelectedFiles>({ grades: null, timetable: null });
 
   // null: 팝업 닫힘 / grades: 성적만 표시 / timetable: 수강신청확인서만 표시.
-  // 바로가기 URL로 진입해도 같은 파일 선택 UI를 사용한다.
-  const [selectedUpload, setActiveUpload] = useState<FileKind | null>(null);
-  const activeUpload = uploadFromUrl ?? selectedUpload;
+  const [activeUpload, setActiveUpload] = useState<FileKind | null>(null);
   const activeInfo = activeUpload ? uploadInfo[activeUpload] : null;
 
   useEffect(() => {
@@ -186,7 +145,7 @@ function MyPageContent() {
   }, [activeUpload]);
 
   function openUploadDialog(kind: FileKind) {
-    // 버튼에서 전달한 종류 하나만 활성화한다.
+    setUploadError("");
     setActiveUpload(kind);
   }
 
@@ -198,98 +157,62 @@ function MyPageContent() {
   function closeUploadDialog() {
     // 닫기 버튼과 X 버튼이 같은 종료 동작을 사용한다.
     // 실제 상태 초기화는 dialog의 onClose에서 처리해 Esc 종료도 지원한다.
-    uploadDialogRef.current?.close();
-  }
-
-  function handleUploadClosed() {
-    setActiveUpload(null);
-    if (uploadFromUrl) {
-      // 닫은 뒤에도 URL이 남아 다시 열리지 않게 upload 매개변수만 제거한다.
-      const next = new URLSearchParams(searchParams.toString());
-      next.delete("upload");
-      router.replace(next.size ? `/my?${next}` : "/my", { scroll: false });
-    }
+    if (!uploadLock.current) uploadDialogRef.current?.close();
   }
 
   async function handleLogout() {
-    if (isLoggingOut) return;
+    if (logoutLock.current) return;
+    logoutLock.current = true;
     setIsLoggingOut(true);
     setLogoutError("");
-
     try {
-      // 인증 브랜치의 API는 쿠키 세션 방식이다.
-      // /api 요청이 NestJS로 전달되도록 연결한 환경에서 실행해야 한다.
-      const sessionResponse = await fetch("/api/auth/session", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-
-      // 이미 만료된 세션이라면 종료 요청 없이 로그인 화면으로 이동한다.
-      if (sessionResponse.status === 401) {
-        resetProfile();
-        resetPlan();
-        router.replace("/login");
-        router.refresh();
-        return;
-      }
-
-      if (!sessionResponse.ok) {
-        throw new Error("Session lookup failed");
-      }
-
-      // 로그아웃은 변경 요청이므로 서버가 발급한 CSRF 토큰을 함께 보낸다.
-      // 쿠키 자체는 httpOnly라 FE에서 직접 읽거나 지우지 않는다.
-      const session: { data?: { csrfToken?: unknown } } =
-        await sessionResponse.json();
-      const csrfToken = session.data?.csrfToken;
-
-      if (typeof csrfToken !== "string" || !csrfToken) {
-        throw new Error("Missing CSRF token");
-      }
-
-      const logoutResponse = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "X-CSRF-Token": csrfToken },
-      });
-
-      // 정상 응답은 204다. 두 요청 사이에 세션이 만료된 401도 로그아웃 상태다.
-      if (logoutResponse.status !== 204 && logoutResponse.status !== 401) {
-        throw new Error("Logout failed");
-      }
-
-      // 로그인 화면 경로는 인증 API의 리다이렉트 경로와 같은 /login 기준이다.
-      // 용준님 로그인 화면을 이 경로로 연결한 뒤 실제 이동을 확인한다.
-      resetProfile();
-      resetPlan();
+      await change("auth/logout", "POST");
       router.replace("/login");
-      router.refresh();
-    } catch {
-      // API 연결 전의 404나 서버 오류를 성공으로 처리하지 않고 안내한다.
-      setLogoutError("로그아웃하지 못했어요. 잠시 후 다시 시도해주세요.");
+    } catch (error) {
+      if (requiresLogin(error)) router.replace("/login?reason=session");
+      else setLogoutError(errorMessage(error));
     } finally {
+      logoutLock.current = false;
       setIsLoggingOut(false);
     }
   }
 
-  // Figma 확인용 예시 데이터. 실제 사용자 및 업로드 결과 API로 교체할 부분.
-  // 프로필 표시값을 공유 상태에서 읽는다. 업로드 파일 상태와는 별개다.
-  const profile = {
-    department: studentProfile.department,
-    admissionYear: `${studentProfile.admissionYear}학번`,
-    curriculumYear: `${studentProfile.admissionYear}학년도`,
-    engineering: studentProfile.engineeringCertification ? "공학인증 대상" : "공학인증 비대상",
-  };
-  // 사이드바의 반영일과 같은 공통 파일 정보를 표시한다.
-  const savedGrade = SAMPLE_GRADE_FILE;
+  async function submitUpload() {
+    const file = activeUpload && files[activeUpload];
+    if (!activeUpload || !file || uploadLock.current) return;
+    uploadLock.current = true;
+    setUploadBusy(true);
+    setUploadError("");
+    setUploadResult("");
+    try {
+      const { data } = await uploadFiles({ [activeUpload]: file }, timetableTerm);
+      updateSelectedFile(activeUpload, null);
+      if (activeUpload === "timetable") setTimetableTerm("");
+      setUploadResult(`${data.parsed}과목을 읽고 ${data.saved}건을 저장했습니다.`);
+      uploadDialogRef.current?.close();
+    } catch (error) {
+      if (requiresLogin(error)) router.replace("/login?reason=session");
+      else setUploadError(uploadErrorMessage(error));
+    } finally {
+      uploadLock.current = false;
+      setUploadBusy(false);
+    }
+  }
+
+  if (!account.data) {
+    return <main className={styles.page}>
+      <h1>내 정보</h1>
+      {account.error ? <><p role="alert">{account.error}</p><button type="button" onClick={account.reload}>다시 시도</button></>
+        : <p role="status">학적 정보를 불러오는 중…</p>}
+    </main>;
+  }
+  const { me, departments, warnings } = account.data;
+  const profile = me.profile;
+  const department = departments.find((item) => item.departmentId === profile?.departmentId);
 
   return (
     <main className={styles.page}>
-      {/* 공통 사이드바를 유지하고 내 정보 본문 안에서만 화면을 전환한다.
-          원래 화면은 숨겨 두므로 선택한 Excel/PDF 파일 상태도 유지된다. */}
-      <div className={styles.overview} hidden={isProfileEditing}>
       <header className={styles.header}>
-        <p className={styles.eyebrow}>{savedGrade.appliedAt} 성적표 반영</p>
         <h1>내 정보</h1>
         <svg className={styles.sun} viewBox="0 0 32 32" fill="none" stroke="#FFD15C" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <circle cx="16" cy="16" r="6" fill="#FFD15C" />
@@ -297,21 +220,29 @@ function MyPageContent() {
         </svg>
         <div className={styles.profileLine}>
           <div>
-            <h2>{profile.department}</h2>
-            <p>{profile.admissionYear}, {profile.curriculumYear} 교육과정, {profile.engineering} · {formatGraduationPeriod(studentProfile)} 졸업 예정</p>
+            <h2>{department?.name ?? "학적 정보"}</h2>
+            {profile && <>
+              <p>{profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>
+              <p>봉사시간 {profile.volunteerHours === null ? "미등록" : `${profile.volunteerHours}시간`}</p>
+              {profile.languageScores.map((score, index) => (
+                <p key={index}>{score.examType} {[score.score, score.grade].filter((value) => value !== null).join(" · ")}</p>
+              ))}
+            </>}
           </div>
-          {/* 기존 화면 위에 변경 창을 열어 선택해 둔 업로드 파일을 유지한다. */}
-          <button type="button" ref={profileButtonRef} className={styles.changeButton} onClick={() => setIsProfileEditing(true)}>변경</button>
+          <Link href="/start?edit=1" className={styles.changeButton}>
+            {me.profileCompleted ? "학적 정보 수정" : "학적 정보 입력"}
+          </Link>
         </div>
       </header>
 
       <div className={styles.content}>
-        <section className={styles.fileColumn} aria-label="학업 자료">
+        {warnings.map((warning) => <p key={warning.code} role="status">{warning.message}</p>)}
+        <section id="academic-files" className={styles.fileColumn} aria-label="학업 자료">
           <div className={styles.fileCard}>
             <span className={styles.fileIcon}><Icon name="file" /></span>
             <div className={styles.fileText}>
-              <h2 title={files.grades?.name ?? savedGrade.name}>{files.grades?.name ?? savedGrade.name}</h2>
-              <p>{files.grades ? "새 파일 선택됨 · 전송 대기" : `${savedGrade.appliedAt} 업로드, ${savedGrade.courseCount}과목`}</p>
+              <h2>성적 Excel</h2>
+              <p>{files.grades ? "새 파일 선택됨 · 전송 대기" : "전체성적조회 XLSX"}</p>
             </div>
             {/* 성적 버튼은 grades를 전달해 성적 Excel 패널만 연다. */}
             <button type="button" className={styles.updateButton} onClick={() => openUploadDialog("grades")}>
@@ -330,17 +261,18 @@ function MyPageContent() {
               {files.timetable ? "변경" : "등록"}
             </button>
           </div>
+          {uploadResult && <p role="status">{uploadResult} <Link href="/grades">성적 조회 ›</Link></p>}
         </section>
 
         <section className={styles.settings} aria-label="내 정보 설정">
           {/* 실제 디그리 화면과 기준 데이터 기능은 해당 기능 구현 후 연결 */}
           <button type="button" className={styles.settingRow} disabled>
             <strong>마이크로디그리</strong>
-            <span className={styles.settingValue}>1개 신청 가능 <span aria-hidden="true">›</span></span>
+            <span className={styles.settingValue}>준비 중</span>
           </button>
           <div className={styles.settingRow}>
             <strong>기준 데이터</strong>
-            <span className={styles.settingValue}>{profile.curriculumYear}</span>
+            <span className={styles.settingValue}>{profile?.curriculumYear ?? "미등록"}</span>
           </div>
           <div className={styles.settingRow}>
             <strong>화면 테마</strong>
@@ -355,13 +287,12 @@ function MyPageContent() {
           </div>
           <div className={styles.settingRow}>
             <strong>저장 위치</strong>
-            <span className={styles.settingValue}>이 기기</span>
+            <span className={styles.settingValue}>시평 서버</span>
           </div>
-          {/* 설정 카드의 마지막 행에 로그아웃과 오류 안내를 함께 표시한다. */}
-        <div className={styles.logoutArea}>
+          <div className={styles.logoutArea}>
             <button
               type="button"
-              className={`${styles.settingRow} ${styles.logoutButton}`}
+              className={styles.logoutButton}
               onClick={handleLogout}
               disabled={isLoggingOut}
               aria-busy={isLoggingOut}
@@ -369,32 +300,26 @@ function MyPageContent() {
             >
               {isLoggingOut ? "로그아웃 중…" : "로그아웃"}
             </button>
-          {logoutError && (
-            <p id="logout-error" className={styles.logoutError} role="alert">
-              {logoutError}
-            </p>
-          )}
-        </div>
+            {logoutError && (
+              <p id="logout-error" className={styles.logoutError} role="alert">
+                {logoutError}
+              </p>
+            )}
+          </div>
         </section>
-
-
       </div>
-
-      </div>
-
-      {/* 닫으면 편집 복사본만 사라지고, 적용했을 때만 공유 프로필을 갱신한다. */}
-      {isProfileEditing && <ProfileEditor profile={studentProfile} onSave={updateProfile} onClose={closeProfileEditor} />}
 
       {/* native dialog는 배경 클릭 방지, 팝업 안 포커스 이동, Esc 종료를 지원한다. */}
       <dialog
         ref={uploadDialogRef}
         className={styles.uploadDialog}
         aria-labelledby="upload-dialog-title"
-        onClose={handleUploadClosed}
+        onClose={() => setActiveUpload(null)}
+        onCancel={(event) => { if (uploadLock.current) event.preventDefault(); }}
       >
         <div className={styles.dialogHeading}>
           <h2 id="upload-dialog-title">{activeInfo?.dialogTitle ?? "파일 업데이트"}</h2>
-          <button type="button" className={styles.closeButton} aria-label="파일 선택 창 닫기" onClick={closeUploadDialog}>×</button>
+          <button type="button" className={styles.closeButton} aria-label="파일 선택 창 닫기" disabled={uploadBusy} onClick={closeUploadDialog}>×</button>
         </div>
         <p className={styles.dialogDescription}>{activeInfo?.description}</p>
         <div className={styles.uploadGrid}>
@@ -406,21 +331,20 @@ function MyPageContent() {
               key={activeUpload}
               kind={activeUpload}
               file={files[activeUpload]}
-              onSelect={(file) => updateSelectedFile(activeUpload, file)}
+              disabled={uploadBusy}
+              onSelect={(file) => { setUploadError(""); updateSelectedFile(activeUpload, file); }}
             />
           )}
         </div>
-        <p className={styles.dialogNote}>선택한 파일은 아직 저장되지 않았으며, 새로고침하면 초기화돼요.</p>
+        {activeUpload === "timetable" && files.timetable && (
+          <TimetableTermSelect value={timetableTerm} onChange={setTimetableTerm} disabled={uploadBusy} />
+        )}
+        {uploadError && <p className={styles.error} role="alert">{uploadError}</p>}
         <div className={styles.dialogFooter}>
-          <button type="button" className={styles.primaryButton} onClick={closeUploadDialog}>닫기</button>
+          <button type="button" className={styles.primaryButton} disabled={uploadBusy || !activeUpload || !files[activeUpload]}
+            onClick={submitUpload}>{uploadBusy ? "업로드 중…" : "업로드"}</button>
         </div>
       </dialog>
     </main>
   );
-}
-
-
-// URL 검색 매개변수를 읽는 영역을 감싸 정적 빌드도 지원한다.
-export default function MyPage() {
-  return <Suspense fallback={<p>내 정보를 불러오는 중이에요.</p>}><MyPageContent /></Suspense>;
 }

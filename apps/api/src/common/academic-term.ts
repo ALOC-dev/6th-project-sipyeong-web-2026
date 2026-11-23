@@ -3,6 +3,11 @@ export interface AcademicTerm {
   termCode: '10' | '20';
 }
 
+export interface TranscriptTerm {
+  year: number;
+  termCode: AcademicTerm['termCode'] | 'SUMMER' | 'WINTER';
+}
+
 export function currentSubmissionTerm(now = new Date()): AcademicTerm {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric',

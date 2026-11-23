@@ -24,9 +24,15 @@ function envelope<T>(data: T, nextCursor?: string | null) {
   return { data, meta: { requestId: randomUUID(), ...(nextCursor !== undefined && { nextCursor }) } };
 }
 
+const semesterNames = new Map([
+  ['10', { term: 'FIRST', label: '1학기' }],
+  ['20', { term: 'SECOND', label: '2학기' }],
+  ['SUMMER', { term: 'SUMMER', label: '여름계절수업' }],
+  ['WINTER', { term: 'WINTER', label: '겨울계절수업' }],
+]);
+
 function semesterView(row: SemesterRow) {
-  const term = row.termCode === '10' ? 'FIRST' : row.termCode === '20' ? 'SECOND' : null;
-  const label = term === 'FIRST' ? '1학기' : term === 'SECOND' ? '2학기' : row.termCode;
+  const { term, label } = semesterNames.get(row.termCode) ?? { term: null, label: row.termCode };
   return { ...row, term, name: row.year + '학년도 ' + label, isCurrent: false };
 }
 

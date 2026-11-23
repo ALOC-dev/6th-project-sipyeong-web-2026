@@ -1,6 +1,6 @@
-import type { AcademicTerm } from '../../common/academic-term';
+import type { TranscriptTerm } from '../../common/academic-term';
 
-export interface ParsedCourseRecord extends AcademicTerm {
+export interface ParsedCourseRecord extends TranscriptTerm {
   courseNumber: string;
   courseName: string;
   sectionNumber: string | null;
