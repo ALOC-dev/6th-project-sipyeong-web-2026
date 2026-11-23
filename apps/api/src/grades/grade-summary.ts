@@ -32,7 +32,7 @@ const labels = new Map<string, Category>([
   ['교직', 'OTHER'], ['ROTC', 'OTHER'], ['기타', 'OTHER'], ['기타(교직,ROTC)', 'OTHER'],
 ]);
 
-function categoryFor(label: string | null): Category {
+export function categoryFor(label: string | null): Category {
   const normalized = label?.normalize('NFKC').replace(/\s+/g, '').toUpperCase() ?? '';
   return labels.get(normalized) ?? 'UNCLASSIFIED';
 }
@@ -113,6 +113,7 @@ export function summarizeGradeTotals(rows: readonly Pick<GradeRow, 'recordId' | 
     earnedCredits: earnedUnknown ? null : earned / 10,
     enrolledCredits: enrolled / 10,
     gpa: gpaUnknown || gpaCredits === 0 ? null : Math.round(weightedPoints * 10 / gpaCredits) / 100,
+    gpaBasis: gpaUnknown ? null : { gpaCredits: gpaCredits / 10, gradePoints: weightedPoints / 100 },
     missingValidity, gradeUnknown,
   };
 }

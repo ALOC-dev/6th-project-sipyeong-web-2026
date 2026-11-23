@@ -7,6 +7,11 @@ export interface LanguageScore {
   takenAt: string | null;
 }
 
+export interface ExpectedGraduation {
+  graduationYear: number;
+  graduationMonth: 2 | 8;
+}
+
 export interface ProfilePatch {
   departmentId?: string;
   admissionYear?: number;
@@ -14,12 +19,14 @@ export interface ProfilePatch {
   studentNumber?: string | null;
   volunteerHours?: number | null;
   languageScores?: LanguageScore[];
+  expectedGraduation?: ExpectedGraduation | null;
+  studySemester?: number;
   expectedRevision: number;
 }
 
 const fields = new Set([
   'departmentId', 'admissionYear', 'curriculumYear', 'studentNumber',
-  'volunteerHours', 'languageScores', 'expectedRevision',
+  'volunteerHours', 'languageScores', 'expectedGraduation', 'studySemester', 'expectedRevision',
 ]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -66,7 +73,16 @@ export function parseProfilePatch(value: unknown): ProfilePatch | undefined {
        volunteerHours < 0 || volunteerHours > 99999.9 || Math.round(volunteerHours * 10) / 10 !== volunteerHours))) {
     return undefined;
   }
-  const { languageScores } = value;
+  const { languageScores, expectedGraduation, studySemester } = value;
+  if (studySemester !== undefined && (!integer(studySemester, 1, 8) || expectedGraduation !== undefined)) return undefined;
+  let graduation: ExpectedGraduation | null | undefined;
+  if (expectedGraduation === null) graduation = null;
+  else if (expectedGraduation !== undefined) {
+    if (!isObject(expectedGraduation) || Object.keys(expectedGraduation).length !== 2) return undefined;
+    const { graduationYear, graduationMonth } = expectedGraduation;
+    if (!integer(graduationYear, 1901, 9999) || (graduationMonth !== 2 && graduationMonth !== 8)) return undefined;
+    graduation = { graduationYear, graduationMonth };
+  }
   if (languageScores !== undefined && (!Array.isArray(languageScores) || languageScores.length > 50)) return undefined;
 
   const scores: LanguageScore[] = [];
@@ -77,8 +93,8 @@ export function parseProfilePatch(value: unknown): ProfilePatch | undefined {
   }
 
   return {
-    expectedRevision, departmentId, admissionYear, curriculumYear,
+    expectedRevision, departmentId, admissionYear, curriculumYear, studySemester,
     studentNumber: typeof studentNumber === 'string' ? studentNumber.trim() : studentNumber,
-    volunteerHours, languageScores: languageScores === undefined ? undefined : scores,
+    volunteerHours, expectedGraduation: graduation, languageScores: languageScores === undefined ? undefined : scores,
   };
 }

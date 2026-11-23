@@ -8,6 +8,7 @@ import { loadAccount } from "../academic-account";
 import { TimetableTermSelect, uploadInfo } from "../academic-upload";
 import { change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
 import { useApi } from "../use-api";
+import { formatGraduationPeriod } from "../profile-model";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
 
@@ -208,6 +209,7 @@ export default function MyPage() {
   }
   const { me, departments, warnings } = account.data;
   const profile = me.profile;
+  const graduation = profile?.expectedGraduation ?? profile?.estimatedGraduation;
   const department = departments.find((item) => item.departmentId === profile?.departmentId);
 
   return (
@@ -223,6 +225,7 @@ export default function MyPage() {
             <h2>{department?.name ?? "학적 정보"}</h2>
             {profile && <>
               <p>{profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>
+              <p>{Math.ceil(profile.studySemester / 2)}학년 {(profile.studySemester - 1) % 2 + 1}학기{graduation && ` · ${formatGraduationPeriod(graduation)} 졸업 예정`}</p>
               <p>봉사시간 {profile.volunteerHours === null ? "미등록" : `${profile.volunteerHours}시간`}</p>
               {profile.languageScores.map((score, index) => (
                 <p key={index}>{score.examType} {[score.score, score.grade].filter((value) => value !== null).join(" · ")}</p>

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { pretendard } from "./fonts/pretendard";
 import { ThemeProvider } from "./theme-provider";
-import { GradePlanProvider } from "./grade-plan-provider";
 import { AppShell } from "./app-shell";
 import "./globals.css";
 
@@ -20,7 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-full flex flex-col">
         {/* 모든 페이지를 감싸므로 이동·새로고침 후에도 공통 테마를 적용한다. */}
         <ThemeProvider>
-          <GradePlanProvider><AppShell>{children}</AppShell></GradePlanProvider>
+          <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>
     </html>

@@ -12,6 +12,8 @@ category는 MAJOR_REQUIRED, MAJOR_ELECTIVE, GENERAL, OTHER, UNCLASSIFIED 또는 
 
 ## 기본 집계
 
+전체 집계의 `currentTerm`은 수강신청확인서 처리와 같은 학기 기준을 사용합니다. `gpaBasis`는 유효 성적의 평점 산정 학점(`gpaCredits`)과 평점×학점 합계(`gradePoints`)입니다. 산정이 불확실하면 `null`을 반환합니다. 학점 플래너는 이번 학기 수강 과목과 이 집계를 사용해 예상 누적 평점을 계산합니다.
+
 성적표에 무효로 표시된 기록은 집계에서 제외합니다. 이전에 입력되어 grade_valid가 null인 행 때문에 결과가 달라질 수 있으면 해당 합계를 null로 반환합니다. 같은 성적표를 다시 올리면 유효 여부가 저장됩니다. F0 및 U는 취득학점에서 제외합니다. 공식 등급표에 따라 유효한 F0는 평점에 0점으로 반영하고, S/U는 평점 산정에서 제외합니다. 재수강 과목 연결과 대체 판정은 별도 작업입니다.
 
 [서울시립대학교 등급표](https://www.uos.ac.kr/kor/html/uaInfo/result/manage/manage.do?identified=anonymous) · [학사내규 제46조](https://rule.uos.ac.kr/lmxsrv/law/lawFullContent.srv?SEQ=24&SEQ_HISTORY=2061)

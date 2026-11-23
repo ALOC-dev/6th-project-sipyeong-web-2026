@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { HelpButton } from "../help-button";
-import { useGradePlan } from "../grade-plan-provider";
-import { estimateFinalRank, GOALS, GRADES, validatePredictor } from "./grade-utils";
+import Link from "next/link";
+import { GradePlanProvider, useGradePlan } from "../grade-plan-provider";
+import { estimateFinalRank, GOALS, GRADES, newPredictorForm, validatePredictor } from "./grade-utils";
 import type { GoalGrade, Grade, PredictorForm, RankEstimate } from "./grade-utils";
-import { makePredictorForms } from "./sample-data";
 import { getRelativeExclusion, getRelativeSegments } from "./relative-policy";
 import { GradesHelpDialog } from "./grades-help-dialog";
 import type { GradesHelpKind } from "./grades-help-dialog";
 import { PredictorSettings, WEIGHT_FIELDS } from "./predictor-settings";
 import { GradeRecords } from "./grade-records";
+import { loadGrades, type GradeData } from "./grade-data";
+import { GradesHeader } from "./grades-header";
+import { useApi } from "../use-api";
 import styles from "./page.module.css";
 
 const TABS = [{ id: "record", label: "성적 기록" }, { id: "planner", label: "플래너" }, { id: "predictor", label: "예측기" }] as const;
@@ -44,31 +48,48 @@ function ScoreRow({ label, scoreKey, maxKey, form, onChange }: {
 }
 
 export default function GradesPage() {
-  const { data, previous, target, locks, setTarget, setLocks, plan, forecast } = useGradePlan();
-  const [tab, setTab] = useState<Tab>("record");
-  const [courseId, setCourseId] = useState(data.currentCourses.find((course) => course.id === "network")?.id ?? data.currentCourses[0]?.id ?? "");
-  const [forms, setForms] = useState(() => makePredictorForms(data.currentCourses));
+  return <Suspense fallback={<p role="status">학점 화면을 불러오는 중…</p>}><GradeTabs /></Suspense>;
+}
+
+function GradeTabs() {
+  const initialTab = useSearchParams().get("tab") === "planner" ? "planner" : "record";
+  const { data, error, reload } = useApi(loadGrades);
+  if (!data) return <main className={styles.page}>
+    <GradesHeader />
+    <div className={styles.content}>{error
+      ? <section className={styles.card}><p role="alert">{error}</p><button type="button" onClick={reload}>다시 조회</button></section>
+      : <p role="status">학점 정보를 불러오는 중…</p>}</div>
+  </main>;
+  return <GradePlanProvider userId={data.userId} summary={data.summary} courses={data.currentCourses}>
+    <GradePanels key={initialTab} data={data} initialTab={initialTab} />
+  </GradePlanProvider>;
+}
+
+function GradePanels({ data, initialTab }: { data: GradeData; initialTab: Tab }) {
+  const { currentGpa, target, locks, setTarget, setLocks, plan, forecast } = useGradePlan();
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [courseId, setCourseId] = useState(data.currentCourses[0]?.id ?? "");
+  const [forms, setForms] = useState<Record<string, PredictorForm>>({});
   const [goals, setGoals] = useState<Record<string, GoalGrade>>({});
   const [help, setHelp] = useState<GradesHelpKind | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const defaults = makePredictorForms(data.currentCourses);
-  const getForm = (id: string) => defaults[id] ? { ...defaults[id], ...forms[id] } : undefined;
+  const getForm = (id: string) => forms[id] ?? newPredictorForm();
   const selectedCourse = data.currentCourses.find((course) => course.id === courseId);
-  const form = getForm(courseId);
+  const form = selectedCourse ? getForm(courseId) : undefined;
   const goal = goals[courseId] ?? "B+";
   const { validation, exclusion, input, result } = predict(form, goal);
   const cutoffs = validation.ok ? validation.value.cutoffs : null;
 
   function changeForm(key: keyof PredictorForm, value: string) {
     // 과목을 바꿔도 각 과목의 점수·비율이 다른 과목에 섞이지 않는다.
-    setForms((stored) => ({ ...stored, [courseId]: { ...defaults[courseId], ...stored[courseId], [key]: value } }));
+    setForms((stored) => ({ ...stored, [courseId]: { ...(stored[courseId] ?? newPredictorForm()), [key]: value } }));
   }
   function openPredictor(id: string, grade: GoalGrade) {
     setCourseId(id); setGoals((stored) => ({ ...stored, [id]: grade })); setTab("predictor");
   }
 
   return <main className={styles.page}>
-    <header className={styles.header}><div className={styles.headerTitle}><h1>학점</h1></div></header>
+    <GradesHeader data={data} />
     <div className={styles.content}>
       <div className={styles.tabs} role="tablist" aria-label="학점 메뉴">{TABS.map((item, index) => <button key={item.id} id={`tab-${item.id}`} type="button" role="tab" aria-selected={tab === item.id} aria-controls={`panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1} onClick={() => setTab(item.id)} onKeyDown={(event) => {
         // 키보드 방향키·Home·End로도 탭을 바꿀 수 있다.
@@ -84,17 +105,17 @@ export default function GradesPage() {
 
       {/* PC는 1.35:1 두 열, 모바일은 같은 카드를 한 열로 쌓는다. */}
       <section id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {tab === "record" && <GradeRecords />}
-        {tab !== "record" && data.source === "sample" && (
-          <p className={styles.hint}>예시 과목과 성적을 사용한 모의 계산입니다.</p>
-        )}
+        {tab === "record" && <GradeRecords data={data} target={target} onShowHelp={() => setHelp("history")} />}
 
         {tab === "planner" && (data.currentCourses.length ? <div className={styles.plannerGrid}>
           <section className={styles.card}>
             <div className={styles.cardHeading}><h2>이번 학기 목표 평점<HelpButton label="목표 평점 설명 보기" onClick={() => setHelp("planner")} /></h2></div>
             <output className={styles.targetNumber} htmlFor="semester-target">{target.toFixed(2)}</output>
             <input id="semester-target" className={styles.range} type="range" min="2" max="4.5" step="0.05" value={target} aria-label="이번 학기 목표 평점" onChange={(event) => setTarget(Number(event.target.value))} />
-            <div className={styles.forecast}><p>누적 평점</p><div><span>{fmt(previous.gpa)}</span><span className={styles.forecastArrow}>→</span><strong>{fmt(forecast)}</strong></div></div>
+            <div className={styles.forecast}><p>예상 누적 평점</p><div><span>{fmt(currentGpa)}</span><span className={styles.forecastArrow}>→</span><strong>{fmt(forecast)}</strong></div></div>
+            {plan.possible && <p className={styles.hint}>{data.summary.gpaBasis
+              ? "예상 누적 평점은 재수강에 따른 기존 성적 대체를 반영하지 않아요."
+              : "성적표의 평점 산정 자료를 확인한 뒤 예상 누적 평점을 계산할 수 있어요."}</p>}
             {!plan.possible && <p className={styles.error}>고정 조건에서는 최대 {fmt(plan.highestGpa)}예요. 목표나 고정 성적을 조정해주세요.</p>}
           </section>
           <section className={styles.card}>
@@ -113,15 +134,16 @@ export default function GradesPage() {
               </div>;
             })}
           </section>
-        </div> : <section className={styles.card}>수강 내역이 등록되면 목표 평점을 설정할 수 있어요.</section>)}
+        </div> : <NoCurrentCourses enrolledCount={data.enrolledCount} />)}
 
-        {tab === "predictor" && (!selectedCourse || !form ? <section className={styles.card}>수강 내역을 먼저 등록해주세요.</section> : <div className={styles.predictorGrid}>
+        {tab === "predictor" && (!selectedCourse || !form ? <NoCurrentCourses enrolledCount={data.enrolledCount} /> : <div className={styles.predictorGrid}>
           <section className={styles.card}>
             <div className={styles.inputRow}><label htmlFor="predict-course">과목</label><select id="predict-course" value={courseId} onChange={(event) => setCourseId(event.target.value)}>{data.currentCourses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></div>
             <div className={styles.weightBox}>
-              <div className={styles.weightHeading}><h2>평가 비율</h2><button type="button" className={styles.textButton} aria-haspopup="dialog" onClick={() => setShowSettings(true)}>예시 · 평가 기준 설정</button></div>
+              <div className={styles.weightHeading}><h2>평가 비율</h2><button type="button" className={styles.textButton} aria-haspopup="dialog" onClick={() => setShowSettings(true)}>평가 기준 설정</button></div>
               <div className={styles.weightSummary}>{WEIGHT_FIELDS.map((field) => <div key={field.key}><span>{field.label}</span><strong>{form[field.key] || "—"}%</strong></div>)}</div>
             </div>
+            <p className={styles.hint}>평가 비율은 기본값입니다. 실제 강의계획서에 맞게 수정하고 수강 인원과 중간고사 등수를 입력하세요.</p>
             <ScoreRow label="출석" scoreKey="attendanceScore" maxKey="attendanceMax" form={form} onChange={changeForm} />
             <ScoreRow label="과제" scoreKey="assignmentScore" maxKey="assignmentMax" form={form} onChange={changeForm} />
             <div className={styles.inputRow}><label htmlFor="mid-rank">중간고사 등수 {!exclusion && <span className={styles.required}>필수</span>}</label><div className={styles.fraction}><input id="mid-rank" type="number" min="1" max={Number(form.enrollment) || undefined} step="1" required={!exclusion} value={form.midRank} aria-invalid={!exclusion && !validation.ok && Boolean(validation.errors.midRank)} onChange={(event) => changeForm("midRank", event.target.value)} /><span>/</span><input type="number" min="1" max="10000" step="1" value={form.enrollment} aria-label="수강 인원" onChange={(event) => changeForm("enrollment", event.target.value)} /></div></div>
@@ -156,9 +178,17 @@ export default function GradesPage() {
           </div>
         </div>)}
       </section>
-      {data.source === "sample" && <p className={styles.demoNote}>예시 성적·강의 데이터로 체험 중</p>}
     </div>
     {help && <GradesHelpDialog kind={help} cutoffs={cutoffs} onClose={() => setHelp(null)} />}
-    {showSettings && form && <PredictorSettings form={form} onChange={changeForm} onReset={() => setForms((stored) => ({ ...stored, [courseId]: defaults[courseId] }))} onClose={() => setShowSettings(false)} />}
+    {showSettings && form && <PredictorSettings form={form} onChange={changeForm} onReset={() => setForms((stored) => ({ ...stored, [courseId]: newPredictorForm() }))} onClose={() => setShowSettings(false)} />}
   </main>;
+}
+
+function NoCurrentCourses({ enrolledCount }: { enrolledCount: number }) {
+  return <section className={styles.card}>
+    {enrolledCount > 0 ? <p>학점이 있는 수강 과목이 없어요.</p> : <>
+      <p>이번 학기 수강 과목이 없어요. 수강신청확인서를 올리면 과목을 불러올 수 있어요.</p>
+      <Link href="/my#academic-files" className={styles.uploadLink}>파일 올리기</Link>
+    </>}
+  </section>;
 }

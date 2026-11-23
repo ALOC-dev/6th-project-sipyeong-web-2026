@@ -102,7 +102,7 @@ test('Kakao signup, profile persistence across sign-ins, state replay and sessio
   assert.equal((await unregistered.json()).data.profileCompleted, false);
 
   const registration = {
-    departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: 'TEST-1234',
+    departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: 'TEST-1234', expectedGraduation: { graduationYear: 2027, graduationMonth: 2 },
     volunteerHours: 12.5, languageScores: [{ examType: 'TOEIC', score: 850, takenAt: '2025-03-17' }],
     expectedRevision: 0,
   };
@@ -117,11 +117,14 @@ test('Kakao signup, profile persistence across sign-ins, state replay and sessio
   assert.equal(registered.status, 200);
   const saved = (await registered.json()).data;
   const { expectedRevision, languageScores, ...registeredFields } = registration;
-  assert.deepEqual(saved.profile, {
+  const { studySemester, estimatedGraduation, ...savedFields } = saved.profile;
+  assert.deepEqual(savedFields, {
     ...registeredFields,
     languageScores: languageScores.map(score => ({ ...score, grade: null })),
     revision: expectedRevision + 1,
   });
+  assert.ok(studySemester >= 1 && studySemester <= 8);
+  assert.equal(estimatedGraduation, null);
 
   const second = await start();
   const loggedIn = await request('login/kakao/callback?code=login&state=' + second.state, {

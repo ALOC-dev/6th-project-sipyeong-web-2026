@@ -1,4 +1,4 @@
-import { deriveRelativeCutoffs, getRelativeExclusion, RELATIVE_POLICY } from "./relative-policy";
+import { deriveRelativeCutoffs, getDefaultRelativeFields, getRelativeExclusion, RELATIVE_POLICY } from "./relative-policy";
 import type { CourseType, GroupRatios, RelativeFormFields } from "./relative-policy";
 
 // API와 화면에서 분리한 순수 계산 함수다. 여기서는 네트워크·저장소를 사용하지 않는다.
@@ -32,9 +32,13 @@ export function summarize(courses: RecordedCourse[]) {
   return { earnedCredits, gpaCredits, gradePoints, gpa: gpaCredits ? gradePoints / gpaCredits : null };
 }
 
-export function cumulativeGpa(previous: ReturnType<typeof summarize>, semester: ReturnType<typeof summarize>) {
+export function cumulativeGpa(previous: Pick<ReturnType<typeof summarize>, "gpaCredits" | "gradePoints">, semester: Pick<ReturnType<typeof summarize>, "gpaCredits" | "gradePoints">) {
   const credits = previous.gpaCredits + semester.gpaCredits;
   return credits ? (previous.gradePoints + semester.gradePoints) / credits : null;
+}
+
+export function forecastTargetGpa(previous: { gpaCredits: number; gradePoints: number } | null, credits: number, target: number) {
+  return previous && credits > 0 ? cumulativeGpa(previous, { gpaCredits: credits, gradePoints: credits * target }) : null;
 }
 
 // 원본 HTML의 '고정 성적 + 나머지 성적 배분' 흐름을 유지한다.
@@ -89,6 +93,15 @@ export type PredictorForm = RelativeFormFields & {
   assignmentScore: string; assignmentMax: string;
   attendanceWeight: string; assignmentWeight: string; midtermWeight: string; finalWeight: string;
 };
+export function newPredictorForm(): PredictorForm {
+  return {
+    enrollment: "", midRank: "",
+    attendanceScore: "", attendanceMax: "10", assignmentScore: "", assignmentMax: "20",
+    attendanceWeight: "10", assignmentWeight: "20", midtermWeight: "30", finalWeight: "40",
+    ...getDefaultRelativeFields(),
+  };
+}
+
 export type PredictionInput = {
   enrollment: number; midRank: number; attendancePercent: number; assignmentPercent: number;
   attendanceWeight: number; assignmentWeight: number; midtermWeight: number; finalWeight: number;
@@ -108,7 +121,7 @@ export function validatePredictor(form: PredictorForm): PredictionValidation {
     const raw = form[key] ?? "";
     if (!raw.trim()) {
       if (fallback !== undefined) return fallback;
-      errors[key] = `${label}을 입력해주세요.`;
+      errors[key] = `${label} 입력이 필요해요.`;
       return NaN;
     }
     const value = Number(raw);

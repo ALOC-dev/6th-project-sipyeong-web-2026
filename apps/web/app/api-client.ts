@@ -93,16 +93,25 @@ export interface LanguageScore {
   takenAt: string | null;
 }
 
+export interface ExpectedGraduation {
+  graduationYear: number;
+  graduationMonth: 2 | 8;
+}
+
 export interface Profile {
   departmentId: string;
   admissionYear: number;
   curriculumYear: number | null;
+  expectedGraduation?: ExpectedGraduation | null;
+  estimatedGraduation: ExpectedGraduation | null;
+  studySemester: number;
   volunteerHours: number | null;
   languageScores: LanguageScore[];
   revision: number;
 }
 
 export interface Me {
+  userId: string;
   profile: Profile | null;
   profileCompleted: boolean;
 }
@@ -120,18 +129,21 @@ export interface GradeTotals {
 }
 
 export interface GradeSummary extends GradeTotals {
+  currentTerm: { year: number; termCode: "10" | "20" };
+  gpaBasis: { gpaCredits: number; gradePoints: number } | null;
   warnings: Warning[];
   byCategory: { category: string; earnedCredits: number | null; enrolledCredits: number }[];
 }
 
-export interface SemesterGrade extends GradeSummary {
-  semester: { semesterId: string; name: string };
+export interface SemesterGrade extends Omit<GradeSummary, "currentTerm"> {
+  semester: { semesterId: string; name: string; year: number; termCode: string };
 }
 
 export interface GradeRecord {
   recordId: string;
   courseCode: string;
   courseName: string;
+  category: string;
   credits: number;
   grade: string | null;
   gradeValid: boolean | null;

@@ -1,11 +1,22 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool } from 'pg';
 import type { OverviewInput, CourseRecord, Requirement } from './overview.types';
+import type { AcademicTerm } from '../common/academic-term';
 
 @Injectable()
 export class OverviewStore implements OnModuleDestroy {
   private readonly database = new Pool({ connectionString: process.env.DATABASE_URL });
   async onModuleDestroy() { await this.database.end(); }
+
+  async calendar(term: AcademicTerm) {
+    const { rows } = await this.database.query<{ opensOn: string; classesEndOn: string; sourceUrl: string }>(
+      `SELECT opens_on::text AS "opensOn", classes_end_on::text AS "classesEndOn", source_url AS "sourceUrl"
+       FROM academic_term_calendar JOIN semesters USING (semester_id)
+       WHERE year = $1 AND term_code = $2`,
+      [term.year, term.termCode],
+    );
+    return rows[0] ?? null;
+  }
 
   async load(userId: string): Promise<OverviewInput> {
     const client = await this.database.connect();

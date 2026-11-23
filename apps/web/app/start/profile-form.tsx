@@ -1,12 +1,13 @@
 import { useRef, useState, type FormEvent } from "react";
 import type { CurriculumRule } from "../academic-account";
 import type { Department, LanguageScore, Profile } from "../api-client";
+import { estimateGraduationFromSemester, formatGraduationPeriod } from "../profile-model";
 import styles from "./page.module.css";
 
 const admissionYears = [2026, 2025, 2024, 2023, 2022, 2021, 2020];
 const maxScores = 50;
 
-export type ProfileChanges = Partial<Pick<Profile, "departmentId" | "admissionYear" | "volunteerHours" | "languageScores">> & {
+export type ProfileChanges = Partial<Pick<Profile, "departmentId" | "admissionYear" | "volunteerHours" | "languageScores" | "studySemester">> & {
   curriculumYear?: number;
 };
 
@@ -34,6 +35,10 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
   const [curriculumYear, setCurriculumYear] = useState(() => defaultCurriculum(
     getYears(departmentId, admissionYear), String(profile?.curriculumYear ?? ""),
   ));
+  const [studySemester, setStudySemester] = useState(String(profile?.studySemester ?? ""));
+  const graduation = studySemester ? (Number(studySemester) === profile?.studySemester
+    ? profile.expectedGraduation ?? profile.estimatedGraduation
+    : estimateGraduationFromSemester(Number(studySemester), new Date())) : null;
   const savedVolunteerHours = String(profile?.volunteerHours ?? "");
   const [volunteerHours, setVolunteerHours] = useState(savedVolunteerHours);
   const [volunteerError, setVolunteerError] = useState("");
@@ -105,6 +110,8 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
       }
     }
     onSave({
+      ...((!profile?.expectedGraduation || Number(studySemester) !== profile.studySemester) &&
+        { studySemester: Number(studySemester) }),
       ...(departmentId !== profile?.departmentId && { departmentId }),
       ...(admission !== profile?.admissionYear && { admissionYear: admission }),
       ...(curriculum !== profile?.curriculumYear && { curriculumYear: curriculum }),
@@ -145,6 +152,18 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
             {admissionYear && !knownCurriculumYears.length && (
               <span id="curriculum-help" className={styles.hint}>등록된 학교 기준이 없어요. 학교에서 안내받은 연도를 선택해 주세요.</span>
             )}
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="sStudySemester">현재 학년·학기</label>
+            <select id="sStudySemester" required value={studySemester}
+              onChange={event => setStudySemester(event.target.value)}>
+              <option value="" disabled>현재 학년·학기 선택</option>
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index} value={index + 1}>{Math.floor(index / 2) + 1}학년 {index % 2 + 1}학기</option>
+              ))}
+            </select>
+            <span className={styles.hint}>휴학 없이 8학기를 마치는 기준으로 졸업 예정 시기를 계산해요.</span>
+            {graduation && <span className={styles.hint}>졸업 예정 {formatGraduationPeriod(graduation)}</span>}
           </div>
           {departmentId === "34" && <details className={styles.guide}>
             <summary>공학교육인증 안내</summary>
