@@ -1,20 +1,30 @@
 # 시평 프론트엔드
 
-Next.js App Router, React, TypeScript, CSS Modules로 구성한 홈·내 정보 화면입니다.
+Next.js App Router, React, TypeScript, CSS Modules로 구성한 로그인, 학적 정보, 성적 업로드·조회와 졸업요건을 제공합니다.
 
-## 설치·실행
+## 로컬 연동
 
-Node.js 24를 사용합니다. 저장소 루트에서 실행하세요.
+Node.js 24를 사용합니다. 저장소 루트에서 `npm ci`를 실행합니다. API 환경 파일은 `apps/api/.env`에 두고, 팀의 개발 PostgreSQL에 연결합니다. DB 연결 문자열과 카카오 키는 API 환경 파일에서 관리합니다.
+
+기존 카카오 콜백이 `http://localhost:3001/api/auth/login/kakao/callback`에 등록된 개발 환경에서는 브라우저가 Next.js의 3001번 포트에 접속하고, Next.js가 `/api`를 NestJS의 3002번 포트로 전달합니다. BE의 `WEB_ORIGIN`은 `http://localhost:3001`이어야 합니다. 등록된 카카오 콜백 URI와 `KAKAO_REDIRECT_URI`를 일치시킵니다.
+
+PowerShell 창 두 개에서 실행합니다.
 
 ```powershell
-npm ci
-npm run dev:web
+# API
+$env:PORT = '3002'
+npm run dev
 ```
 
-- 홈: http://localhost:3000
-- 내 정보: http://localhost:3000/my
+```powershell
+# 프론트
+$env:SIPYEONG_API_ORIGIN = 'http://127.0.0.1:3002'
+npm run dev -w @sipyeong/web -- -H 127.0.0.1 -p 3001
+```
 
-개발과 빌드는 Webpack을 사용합니다. 초기 Windows 환경에서 네이티브 SWC를 사용할 수 없어 Turbopack 실행이 실패했던 점을 고려한 설정입니다.
+브라우저에서 `http://localhost:3001/api/health`의 200 응답을 확인하고 `http://localhost:3001/`에서 카카오 로그인을 시작합니다. 신규 사용자는 학적 정보를 저장한 뒤 성적표 XLSX를 올립니다. 등록된 사용자는 홈에서 학점 기록을 열거나 내 정보에서 파일을 다시 올릴 수 있습니다.
+
+업로드를 검증하려면 API가 사용하는 Python으로 `python -m pip install -r apps/api/scripts/requirements-academic-parsers.txt`를 실행합니다. 개발 DB에 학생의 학과와 파일에 기록된 학기가 등록돼 있어야 합니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 세부 사항은 [카카오 인증](../../docs/kakao-auth.md), [업로드 계약](../../docs/academic-upload.md), [DB 마이그레이션](../api/prisma/README.md)을 참고합니다.
 
 ## 검증
 

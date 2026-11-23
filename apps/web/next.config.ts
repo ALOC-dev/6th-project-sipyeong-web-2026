@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // 아래 항목은 기존 프로젝트 설정을 유지한다.
   experimental: {
     agentFeedback: true,
+    proxyClientMaxBodySize: "22mb",
+    proxyTimeout: 45_000,
+  },
+  async rewrites() {
+    const origin = new URL(process.env.SIPYEONG_API_ORIGIN ?? "http://127.0.0.1:3001").origin;
+    return [{ source: "/api/:path*", destination: `${origin}/api/:path*` }];
   },
   cacheComponents: true,
   partialPrefetching: true,

@@ -1,7 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AcademicNav } from "./academic-nav";
+import { loadAccount } from "./academic-account";
+import { api, displayNumber, listPages, type GradeSummary, type SemesterGrade } from "./api-client";
+import { useApi } from "./use-api";
 import styles from "./page.module.css";
 
-/* 날씨 종류 */
 type WeatherType =
   | "rainbow"
   | "sunny"
@@ -104,506 +111,84 @@ function WeatherIcon({ type }: { type: WeatherType }) {
 }
 
 /* 메뉴 아이콘 */
-const iconPaths = {
-  home: "m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9",
-  checklist:
-    "m3 6 1 1 2-2M9 6h12M3 12l1 1 2-2M9 12h12M3 18l1 1 2-2M9 18h12",
-  award:
-    "M8 14 6 22l6-3 6 3-2-8M17 8a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z",
-  road:
-    "M5 3v5c0 5 14 3 14 8v5M2 3h6M16 21h6M12 7v2M12 13v2",
-  chart: "M4 20h17M7 16v-5M12 16V5M17 16V8",
-  user:
-    "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21v-2a7 7 0 0 1 14 0v2",
-  upload: "M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5",
-  external: "M14 3h7v7m0-7L11 13M10 5H4v15h15v-6",
-};
 
-type IconName = keyof typeof iconPaths;
-
-function Icon({ name }: { name: IconName }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={iconPaths[name]} />
-    </svg>
-  );
+async function loadHome(signal: AbortSignal) {
+  const account = await loadAccount(signal);
+  if (!account.me.profileCompleted) return { account };
+  const [summary, semesters] = await Promise.all([
+    api<GradeSummary>("grades/summary", { signal }),
+    listPages<SemesterGrade>("grades/semesters", signal),
+  ]);
+  return { account, summary: summary.data, semesters };
 }
 
-/* 도움말 표시 */
-function InfoMark({ text }: { text: string }) {
-  return (
-    <span
-      className={styles.infoMark}
-      title={text}
-      aria-label={text}
-    >
-      ?
-    </span>
-  );
-}
-
-/* 화면 확인용 예시 데이터 */
-type Semester = {
-  label: string;
-  gpa: number | null;
-  current?: boolean;
-};
-
-const semesters: Semester[] = [
-  { label: "1-1", gpa: 3.2 },
-  { label: "1-2", gpa: 3.7 },
-  { label: "2-1", gpa: 4.0 },
-  { label: "2-2", gpa: 4.5 },
-  { label: "3-1", gpa: 2.8 },
-  { label: "지금", gpa: null, current: true },
-  { label: "4-1", gpa: null },
-  { label: "4-2", gpa: null },
-];
-
-const summaryItems = [
-  {
-    label: "평점",
-    description: "전공 3.84",
-    value: "3.78",
-  },
-  {
-    label: "인정 학점",
-    description: "취득 79학점",
-    value: "76학점",
-  },
-  {
-    label: "이번 학기",
-    description: "7과목, 12.19 종강",
-    value: "21학점",
-  },
-  {
-    label: "남은 학기",
-    description: "2027-2 졸업 예정",
-    value: "3학기",
-  },
-];
-
-const requirements = [
-  {
-    label: "총 이수학점",
-    value: "54학점",
-    progress: 58,
-    planned: 74,
-  },
-  {
-    label: "전공필수",
-    value: "12학점",
-    progress: 56,
-    planned: 78,
-    note: "미이수 운영체제, 캡스톤디자인",
-  },
-  {
-    label: "전공선택",
-    value: "12학점",
-    progress: 70,
-    planned: 94,
-  },
-  {
-    label: "교양선택",
-    value: "충족 예정",
-    progress: 82,
-    planned: 100,
-    expected: true,
-  },
-  {
-    label: "공학소양",
-    value: "3학점",
-    progress: 0,
-    planned: 0,
-  },
-];
-
-const recommendations = [
-  {
-    name: "운영체제",
-    category: "전공필수 3학점",
-    description: "전공필수 6학점 미이수",
-    caution: "졸업 전 마지막 개설, 권장 학기 지남",
-  },
-  {
-    name: "데이터마이닝",
-    category: "전공선택 3학점",
-    description: "4학년 1학기 권장, 빅데이터 초급 인증 과목",
-    caution: "졸업 전 마지막 개설",
-  },
-  {
-    name: "기계학습",
-    category: "전공선택 3학점",
-    description: "4학년 1학기 권장, 이수 시 머신러닝 입문 취득",
-    caution: "",
-  },
-];
-
-const shortcuts: { label: string; icon: IconName }[] = [
-  { label: "성적표", icon: "upload" },
-  { label: "학점 계산", icon: "chart" },
-  { label: "디그리 신청", icon: "award" },
-  { label: "포털", icon: "external" },
-];
-
-const navigation: { label: string; icon: IconName }[] = [
-  { label: "홈", icon: "home" },
-  { label: "졸업요건", icon: "checklist" },
-  { label: "디그리", icon: "award" },
-  { label: "로드맵", icon: "road" },
-  { label: "학점", icon: "chart" },
-  { label: "내 정보", icon: "user" },
-];
-
-/* 메인 화면 */
 export default function Home() {
-  const graduationProgress = 67.43;
-  const position = graduationProgress / 100;
+  const router = useRouter();
+  const { data, error, reload } = useApi(loadHome);
+  const incomplete = data?.account.me.profileCompleted === false;
 
-  const sunX = 12 + 336 * position;
-  const sunY = 80 - 176 * position * (1 - position);
+  useEffect(() => {
+    if (incomplete) router.replace("/start");
+  }, [incomplete, router]);
+
+  if (!data?.summary) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.card}>
+          <h1>시평</h1>
+          {error ? <><p role="alert">{error}</p><button type="button" onClick={reload}>다시 시도</button></>
+            : <p role="status">학업 정보를 불러오는 중…</p>}
+        </section>
+      </main>
+    );
+  }
+
+  const { account, summary, semesters = [] } = data;
+  const profile = account.me.profile;
+  const department = account.departments.find((item) => item.departmentId === profile?.departmentId);
 
   return (
     <main className={styles.page}>
-      {/* 졸업 현황 */}
       <header className={styles.hero}>
-        <div className={styles.headingRow}>
-          <div>
-            <p className={styles.student}>
-              컴퓨터과학부 3학년 2학기
-            </p>
-            <h1 className={styles.title}>졸업 현황</h1>
-          </div>
-
-          <InfoMark text="졸업 예정일까지의 기간 진행률입니다." />
-        </div>
-
-        <p className={styles.percentage}>
-          {graduationProgress.toFixed(2)}
-          <span>%</span>
-        </p>
-
-        <p className={styles.certification}>
-          외국어 인증, 사회봉사 미완료
-          <span aria-hidden="true">›</span>
-        </p>
-
-        {/* 졸업 진행 곡선 */}
-        <svg
-          className={styles.graduationCurve}
-          viewBox="0 0 360 88"
-          role="img"
-          aria-label={`졸업까지의 기간 진행률 ${graduationProgress}%`}
-        >
-          <path
-            d="M12 80H348"
-            stroke="white"
-            strokeOpacity=".35"
-          />
-
-          <path
-            d="M12 80Q180 -8 348 80"
-            stroke="white"
-            strokeOpacity=".45"
-            strokeWidth="2"
-            fill="none"
-          />
-
-          <path
-            d={`M12 80Q${12 + 168 * position} ${
-              80 - 88 * position
-            } ${sunX} ${sunY}`}
-            stroke="white"
-            strokeWidth="2"
-            fill="none"
-          />
-
-          <g
-            transform={`translate(${sunX}, ${sunY})`}
-            stroke="#FFD15C"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <circle r="5" fill="#FFD15C" />
-            <path d="M0-12v3M0 9v3M-12 0h3M9 0h3" />
-            <path d="m-8-8 2 2m12 12 2 2M-8 8l2-2M6-6l2-2" />
-          </g>
-        </svg>
-
-        <div className={styles.dateRow}>
-          <span>입학 2024.03.04</span>
-          <strong>졸업 D-474</strong>
-        </div>
-
-        {/* 학기별 날씨 */}
+        <p className={styles.student}>{department?.name}{profile && ` · ${profile.admissionYear}학번`}</p>
+        <h1 className={styles.title}>학업 현황</h1>
         <section className={styles.semesterSection}>
-          <div className={styles.sectionHeading}>
-            <h2>학기별 평점</h2>
-
-            <InfoMark
-              text="4.5 무지개 / 4.0 이상 맑음 / 3.5 이상 구름 조금 / 3.0 이상 흐림 / 3.0 미만 비"
-            />
-          </div>
-
-          <div className={styles.semesterGrid}>
-            {semesters.map((semester) => (
-              <div
-                key={semester.label}
-                className={`${styles.semester} ${
-                  semester.current ? styles.currentSemester : ""
-                }`}
-                title={
-                  semester.gpa === null
-                    ? "성적 미확정"
-                    : `평점 ${semester.gpa.toFixed(2)}`
-                }
-              >
-                <span>{semester.label}</span>
-                <WeatherIcon type={getWeatherType(semester.gpa)} />
-              </div>
-            ))}
-          </div>
+          <div className={styles.sectionHeading}><h2>학기별 평점</h2></div>
+          {semesters.length === 0 ? <p>등록된 성적이 없습니다.</p> : (
+            <div className={styles.semesterGrid}>
+              {semesters.map(({ semester, gpa }) => (
+                <div key={semester.semesterId} className={styles.semester}>
+                  <span>{semester.name}</span>
+                  <WeatherIcon type={getWeatherType(gpa)} />
+                  <strong>{displayNumber(gpa, 2)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
-
-        {/* 학기·학년 진행률 */}
-        <section className={styles.periodGrid}>
-          <div>
-            <div className={styles.periodHeading}>
-              <strong>이번 학기</strong>
-              <span>63.10%</span>
-            </div>
-
-            <div className={styles.periodTrack}>
-              <span style={{ width: "63.1%" }} />
-            </div>
-
-            <p>12.19 종강</p>
-          </div>
-
-          <div>
-            <div className={styles.periodHeading}>
-              <strong>3학년</strong>
-              <span>69.17%</span>
-            </div>
-
-            <div className={styles.periodTrack}>
-              <span style={{ width: "69.17%" }} />
-            </div>
-
-            <p>2.28까지</p>
-          </div>
-        </section>
-
-        {/* 바로가기: 화면 연결 전 */}
-        <div className={styles.shortcuts}>
-          {shortcuts.map((shortcut) => (
-            <button key={shortcut.label} type="button" disabled>
-              <Icon name={shortcut.icon} />
-              <span>{shortcut.label}</span>
-            </button>
-          ))}
-        </div>
       </header>
-
-      {/* 본문 */}
       <div className={styles.content}>
-        {/* 요약 카드 */}
-        <section
-          className={`${styles.card} ${styles.summaryCard}`}
-        >
-          <div className={styles.cardHeading}>
-            <h2>
-              요약{" "}
-              <InfoMark text="현재 성적과 학적 정보의 요약입니다." />
-            </h2>
-          </div>
-
+        <section className={`${styles.card} ${styles.summaryCard}`}>
+          <div className={styles.cardHeading}><h2>성적 요약</h2><Link href="/grades">학점 상세 ›</Link></div>
           <dl className={styles.summaryList}>
-            {summaryItems.map((item) => (
-              <div key={item.label} className={styles.summaryRow}>
-                <dt>
-                  <span className={styles.summaryLabel}>
-                    {item.label}
-                  </span>
-                  <span className={styles.description}>
-                    {item.description}
-                  </span>
-                </dt>
-
-                <dd>
-                  <strong>{item.value}</strong>
-                  <span className={styles.chevron} aria-hidden="true">
-                    ›
-                  </span>
-                </dd>
-              </div>
+            {[
+              ["취득학점", displayNumber(summary.earnedCredits, undefined, "학점")],
+              ["수강 중인 학점", displayNumber(summary.enrolledCredits, undefined, "학점")],
+              ["누적 평균평점", summary.gpa === null ? "—" : `${displayNumber(summary.gpa, 2)} / ${summary.gradeScale}`],
+            ].map(([label, value]) => (
+              <div className={styles.summaryRow} key={label}><dt>{label}</dt><dd><strong>{value}</strong></dd></div>
             ))}
           </dl>
-        </section>
-
-        {/* 남은 졸업요건 카드 */}
-        <section
-          className={`${styles.card} ${styles.requirementsCard}`}
-        >
-          <div className={styles.cardHeading}>
-            <h2>
-              남은 졸업요건{" "}
-              <InfoMark text="이번 학기 수강 내역을 포함한 예시입니다." />
-            </h2>
-            <span className={styles.cardMore}>전체 ›</span>
-          </div>
-
-          {requirements.map((item) => (
-            <div key={item.label} className={styles.requirement}>
-              <div className={styles.requirementRow}>
-                <span>{item.label}</span>
-
-                <div className={styles.requirementTrack}>
-                  <span
-                    className={styles.plannedFill}
-                    style={{ width: `${item.planned}%` }}
-                  />
-                  <span
-                    className={styles.earnedFill}
-                    style={{ width: `${item.progress}%` }}
-                  />
-                </div>
-
-                <strong
-                  className={item.expected ? styles.blueText : undefined}
-                >
-                  {item.value}
-                </strong>
-
-                <span className={styles.chevron} aria-hidden="true">
-                  ›
-                </span>
-              </div>
-
-              {item.note && (
-                <p className={styles.warning}>{item.note}</p>
-              )}
-            </div>
+          {summary.warnings.filter((warning) => warning.code !== "REQUIREMENT_CREDITS_UNAVAILABLE").map((warning) => (
+            <p className={styles.warning} key={warning.code}>{warning.message}</p>
           ))}
         </section>
-
-        {/* 마이크로디그리 카드 */}
-        <section
-          className={`${styles.card} ${styles.degreeCard}`}
-        >
-          <div>
-            <h2>빅데이터 초급 신청 가능</h2>
-            <p className={styles.description}>2027.02까지 신청</p>
-          </div>
-
-          <span className={styles.chevron} aria-hidden="true">
-            ›
-          </span>
-        </section>
-
-        {/* 추천 과목 카드 */}
-        <section
-          className={`${styles.card} ${styles.recommendationsCard}`}
-        >
-          <div className={styles.cardHeading}>
-            <h2>
-              2027-1 추천 과목{" "}
-              <InfoMark text="이수 내역을 기준으로 추천하는 과목입니다." />
-            </h2>
-            <span className={styles.cardMore}>전체 ›</span>
-          </div>
-
-          {recommendations.map((course) => (
-            <article key={course.name} className={styles.course}>
-              <h3>{course.name}</h3>
-
-              <p className={styles.description}>
-                {course.category}
-              </p>
-
-              <p className={styles.courseReason}>
-                {course.description}
-              </p>
-
-              {course.caution && (
-                <p className={styles.warning}>
-                  {course.caution}
-                </p>
-              )}
-            </article>
-          ))}
-        </section>
-
-        {/* 누적 평점 카드 */}
-        <section
-          className={`${styles.card} ${styles.gpaCard}`}
-        >
-          <div className={styles.cardHeading}>
-            <h2>
-              누적 평점{" "}
-              <InfoMark text="이번 학기 목표 평점을 반영한 예상값입니다." />
-            </h2>
-            <span className={styles.cardMore}>플래너 ›</span>
-          </div>
-
-          <p className={styles.gpaChange}>
-            <span>3.78</span>
-            <span className={styles.gpaArrow}>→</span>
-            <strong>3.77</strong>
-          </p>
-
-          <p className={styles.description}>
-            이번 학기 목표 3.75, 21학점 반영
-          </p>
+        <section className={styles.card}>
+          <h2>성적 파일</h2>
+          <Link href="/my">내 정보에서 파일 업데이트 ›</Link>
         </section>
       </div>
-
-      {/* 공통 메뉴: 화면 연결 전 */}
-      <nav className={styles.bottomNav} aria-label="주 메뉴">
-        {navigation.map((item) => {
-          const href =
-            item.label === "홈"
-              ? "/"
-              : item.label === "내 정보"
-                ? "/my"
-                : item.label === "졸업요건"
-                  ? "/req"
-                  : item.label === "로드맵"
-                    ? "/road"
-                    : null;
-
-          if (href) {
-            return (
-              <Link
-                key={item.label}
-                href={href}
-                className={
-                  item.label === "홈" ? styles.activeNav : undefined
-                }
-                aria-current={item.label === "홈" ? "page" : undefined}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          }
-
-          return (
-            <button key={item.label} type="button" disabled>
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <AcademicNav current="/" />
     </main>
   );
 }
