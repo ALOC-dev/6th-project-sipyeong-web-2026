@@ -83,6 +83,8 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(summary.earnedCredits, 5);
   assert.equal(summary.enrolledCredits, 2);
   assert.equal(summary.gpa, 2.75);
+  assert.deepEqual(summary.gpaBasis, { gpaCredits: 6, gradePoints: 16.5 });
+  assert.ok(["10", "20"].includes(summary.currentTerm.termCode));
   assert.equal(summary.requiredCredits, null);
   assert.equal(summary.byCategory.find(item => item.category === 'UNCLASSIFIED').enrolledCredits, 2);
   const major = (await (await get('summary?category=MAJOR')).json()).data;
@@ -116,6 +118,7 @@ test('grades persist validity and aggregate all matching records for the signed-
   const incomplete = (await (await get('summary')).json()).data;
   assert.equal(incomplete.earnedCredits, null);
   assert.equal(incomplete.gpa, null);
+  assert.equal(incomplete.gpaBasis, null);
   assert.equal(incomplete.enrolledCredits, 2);
   assert.ok(incomplete.warnings.some(warning => warning.code === 'GRADE_VALIDITY_UNKNOWN'));
   assert.equal((await get(spring + '?cursor=' + cursor)).status, 409);

@@ -18,9 +18,9 @@ export function SemesterGpaDialog({ dialogRef }: { dialogRef: RefObject<HTMLDial
     <h3>기준</h3>
     <dl className={styles.basis}>
       <div><dt>지난 학기</dt><dd>취득 평점</dd></div>
-      <div><dt>이번 학기</dt><dd>플래너 목표 평점</dd></div>
-      <div><dt>이후 학기</dt><dd>평점 계획의 남은 학기 평균</dd></div>
+      <div><dt>이번 학기</dt><dd>취득 평점 또는 플래너 목표 평점</dd></div>
+      <div><dt>이후 학기</dt><dd>미확정</dd></div>
     </dl>
-    <p className={styles.note}>성적이나 평점 계획이 없는 학기는 미확정으로 표시해요.</p>
+    <p className={styles.note}>성적이 없는 학기는 미확정으로 표시해요.</p>
   </dialog>;
 }

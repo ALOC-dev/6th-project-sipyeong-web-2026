@@ -3,6 +3,7 @@ export interface CourseRecord {
   course_name_snapshot: string; credits: string; grade: string | null;
   grade_point: string | null; grade_valid: boolean | null; status: 'completed' | 'enrolled' | 'withdrawn';
   year: number; term_code: string; category_code: string | null;
+  category_snapshot?: string | null;
 }
 export interface Requirement {
   requirement_id: number; rule_code: string; rule_type: string; title: string;

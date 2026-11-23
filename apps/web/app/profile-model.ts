@@ -96,6 +96,15 @@ export function formatGraduationPeriod(profile: Pick<StudentProfile, "graduation
   return `${profile.graduationYear}년 ${profile.graduationMonth}월`;
 }
 
+export function estimateGraduationFromSemester(studySemester: number, now: Date) {
+  const [year, month] = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().split("-").map(Number);
+  const termIndex = (month < 3 ? year - 1 : year) * 2 + (month >= 3 && month < 9 ? 0 : 1);
+  const finalTerm = termIndex + 8 - studySemester;
+  return finalTerm % 2 === 0
+    ? { graduationYear: finalTerm / 2, graduationMonth: 8 as const }
+    : { graduationYear: Math.floor(finalTerm / 2) + 1, graduationMonth: 2 as const };
+}
+
 // 같은 연도 안에서 2월, 8월 순서로 선택지를 만든다.
 export function getGraduationOptions(admissionYear: number) {
   return getGraduationYears(admissionYear).flatMap((year) =>

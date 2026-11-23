@@ -10,6 +10,8 @@
 
 첫 저장에는 departmentId, admissionYear, curriculumYear와 expectedRevision: 0을 보냅니다. 이후에는 조회한 profile.revision을 expectedRevision으로 보내고 변경할 필드만 포함합니다. 현재 입학연도 입력 범위는 2020~2026입니다. 학번과 봉사시간은 선택이며 null로 지울 수 있습니다. 봉사시간은 0 이상의 숫자이며 소수 첫째 자리까지 입력합니다.
 
+졸업 예정 시기는 선택 항목입니다. 조회 결과의 `profile.expectedGraduation`은 미설정일 때 `null`입니다. 수정 시 `expectedGraduation`에 `graduationYear`와 `graduationMonth`를 보내며, 연도는 입학 후 3~12년, 월은 2월 또는 8월입니다. 기존 값을 지우려면 `null`을 보냅니다.
+
 어학성적은 languageScores 배열로 전달합니다. 각 항목은 examType과 score 또는 grade를 가지며 takenAt은 선택 날짜(YYYY-MM-DD)입니다. 예시는 다음과 같습니다.
 
 ```json

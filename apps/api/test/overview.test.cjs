@@ -8,7 +8,7 @@ const { readFile } = require('node:fs/promises');
 test('overview distinguishes passing credits, GPA, projected retakes and certification', () => {
   const row = { record_id: '1', course_id: 1, course_number_snapshot: '001', course_name_snapshot: 'Test',
     credits: '3', grade: 'A0', grade_point: '4', grade_valid: true, status: 'completed',
-    year: 2025, term_code: '20', category_code: 'major_required' };
+    year: 2025, term_code: '20', category_code: null, category_snapshot: '전공필수' };
   const rule = { requirement_id: 1, rule_code: 'total', rule_type: 'total_credits', title: '총 학점',
     category_code: null, min_credits: '6', min_count: null, min_volunteer_hours: null,
     volunteer_course_alternative: false, courses: [], options: [] };
@@ -27,6 +27,8 @@ test('overview distinguishes passing credits, GPA, projected retakes and certifi
   assert.equal(result.credits.earned, 4);
   assert.equal(result.credits.projected, 4);
   assert.equal(result.gpa.overall, 2);
+  assert.equal(result.gpa.major, 2);
+  assert.deepEqual(result.gpa.basis, { gpaCredits: 6, gradePoints: 12 });
   assert.equal(result.graduation.requirements[1].status, 'met');
   assert.equal(result.graduation.requirements[2].status, 'met');
   assert.equal(result.graduation.remainingCredits, 2);
@@ -38,6 +40,36 @@ test('overview distinguishes passing credits, GPA, projected retakes and certifi
   assert.equal(calculateOverview({ ...input, sets: [], requirements: [] }, { year: 2026, termCode: '20' }).graduation.status, 'unknown');
 });
 
+test('course requirements use exact transcript codes and ignore unrelated records', () => {
+  const course = { course_id: 1, course_number: '001', course_name: 'Required' };
+  const completed = { record_id: '1', course_id: null, course_number_snapshot: '001',
+    credits: '3', grade: 'A0', grade_valid: true, status: 'completed', year: 2025, term_code: '20', category_code: null };
+  const retake = { ...completed, record_id: '2', course_id: 1, year: 2026, status: 'enrolled', grade: null };
+  const unrelated = { ...completed, record_id: '3', course_number_snapshot: '002', grade_valid: null };
+  const rule = { rule_code: 'required', rule_type: 'course_credits', min_credits: '6', courses: [course] };
+  const input = { profile: null, sets: [{}], languages: [],
+    records: [completed, retake, unrelated],
+    requirements: [rule,
+      { ...rule, rule_type: 'course_count', min_count: 1 },
+      { ...rule, courses: [] },
+      { ...rule, rule_type: 'manual' },
+      { ...rule, rule_type: 'language_certification', options: [{ exam_type: 'TOEIC', min_score: '700' }] }] };
+  const term = { year: 2026, termCode: '20' };
+  const graduation = calculateOverview(input, term).graduation;
+  assert.equal(graduation.status, 'unmet');
+  const [credits, count, missing, manual, language] = graduation.requirements;
+  assert.deepEqual([credits.status, credits.currentValue, credits.projectedValue], ['unmet', 3, 3]);
+  assert.deepEqual(credits.missingCourses, []);
+  assert.deepEqual(credits.enrolledCourses, [course]);
+  assert.deepEqual([count.status, count.currentValue], ['met', 1]);
+  assert.deepEqual([missing.status, missing.currentValue], ['unknown', null]);
+  assert.equal(manual.pendingReason, 'manual_review');
+  assert.equal(language.pendingReason, 'language_score_missing');
+
+  const unresolved = calculateOverview({ ...input, records: [{ ...completed, grade_valid: null }] }, term);
+  assert.equal(unresolved.graduation.requirements[0].status, 'unknown');
+});
+
 test('overview store loads a consistent curriculum snapshot from migrations', async (t) => {
   const db = new PGlite();
   t.after(() => db.close());
@@ -46,7 +78,7 @@ test('overview store loads a consistent curriculum snapshot from migrations', as
   }
   const store = new OverviewStore();
   await store.onModuleDestroy();
-  store.database = { connect: async () => ({ query: db.query.bind(db), release() {} }) };
+  store.database = { query: db.query.bind(db), connect: async () => ({ query: db.query.bind(db), release() {} }) };
   const user = (await db.query("INSERT INTO app_users(kakao_id) VALUES ('overview') RETURNING id")).rows[0].id;
   await db.exec("INSERT INTO student_profiles(user_id,department_id,student_no,admission_year) SELECT id,34,'test',2024 FROM app_users; INSERT INTO graduation_requirement_sets(department_id,admission_year_from,source_ref) VALUES (34,2024,'test'); INSERT INTO graduation_requirements(requirement_set_id,rule_code,rule_type,title,min_credits) VALUES (1,'total','total_credits','총 학점',130)");
   await db.exec(await readFile('prisma/migrations/006_academic_overview/migration.sql', 'utf8'));
@@ -58,4 +90,9 @@ test('overview store loads a consistent curriculum snapshot from migrations', as
   assert.equal(input.requirements[1].options[0].exam_type, 'TOEIC');
   assert.deepEqual(input.requirements[0].courses, []);
   assert.equal(input.profile.admission_year, 2024);
+  await db.exec(await readFile('prisma/migrations/009_uos_academic_calendar/migration.sql', 'utf8'));
+  const calendar = await store.calendar({ year: 2026, termCode: '20' });
+  assert.equal(calendar.opensOn, '2026-09-01');
+  assert.equal(calendar.classesEndOn, '2026-12-21');
+  assert.equal(await store.calendar({ year: 2027, termCode: '20' }), null);
 });

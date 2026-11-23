@@ -6,6 +6,7 @@ import { SessionGuard } from '../auth/session.guard';
 import type { SessionRequest } from '../auth/session.guard';
 import { categories, filterGrades, policyVersion, presentRecord, summarizeGrades } from './grade-summary';
 import type { CategoryFilter, GradeRow, SemesterRow } from './grade-summary';
+import { currentSubmissionTerm } from '../common/academic-term';
 import { GradesStore } from './grades.store';
 
 function categoryFilter(value: unknown): CategoryFilter | null {
@@ -79,7 +80,7 @@ export class GradesController {
     const snapshot = await this.store.read(request.academicSession!.userId, null);
     const result = summarizeGrades(filterGrades(snapshot.rows, filter), filter);
     return envelope({
-      basis: basis(snapshot.studentDataVersion), filter: { category: filter },
+      basis: basis(snapshot.studentDataVersion), filter: { category: filter }, currentTerm: currentSubmissionTerm(),
       ...result, requiredCredits: null, remainingCredits: null, creditProgressPercent: null,
       warnings: [...result.warnings, {
         code: 'REQUIREMENT_CREDITS_UNAVAILABLE', message: '졸업 기준학점은 아직 반영되지 않았습니다.', relatedIds: [],

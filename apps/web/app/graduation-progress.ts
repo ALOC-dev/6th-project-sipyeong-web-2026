@@ -96,10 +96,18 @@ function subscribeClock(listener: () => void) {
 }
 const getClockSnapshot = () => clockSnapshot;
 const getServerClock = (): number | null => null;
-export function useGraduationProgress(dates: GraduationDates) {
+export function useGraduationProgress(dates: GraduationDates | null) {
   // 서버와 최초 렌더는 같은 빈 값으로 시작해 hydration 오류를 피한다.
-  const now = useSyncExternalStore(subscribeClock, getClockSnapshot, getServerClock);
-  return now === null ? null : calculateRealtimeGraduationProgress(dates, now);
+  const now = useAcademicClock();
+  return now === null || dates === null ? null : calculateRealtimeGraduationProgress(dates, now);
+}
+
+export function useAcademicClock() {
+  return useSyncExternalStore(subscribeClock, getClockSnapshot, getServerClock);
+}
+
+export function nextCalendarDate(value: string) {
+  return new Date((dayNumber(value) + 1) * DAY).toISOString().slice(0, 10);
 }
 
 // 연·월은 사용자 선택값을 사용한다. 입학일은 기존 3/4 예시를 유지한다.
@@ -107,7 +115,7 @@ export function useGraduationProgress(dates: GraduationDates) {
 // 매년 2/25 또는 8/25가 학교의 공식 졸업일이라는 뜻은 아니다.
 export function getProfileGraduationDates(profile: Pick<StudentProfile, "admissionYear" | "graduationYear" | "graduationMonth">): GraduationDates {
   return {
-    admission: `${profile.admissionYear}${GRADUATION_DATES.admission.slice(4)}`,
+    admission: `${profile.admissionYear}-03-01`,
     graduation: `${profile.graduationYear}-${String(profile.graduationMonth).padStart(2, "0")}-25`,
     graduationDateIsEstimate: true,
   };

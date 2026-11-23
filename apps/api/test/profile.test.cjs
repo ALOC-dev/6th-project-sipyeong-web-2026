@@ -6,6 +6,14 @@ const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require('../dist/app.module');
 const { AuthStore, hash } = require('../dist/auth/store');
 const { ProfileStore } = require('../dist/profile/profile.store');
+const { currentAcademicTerm, graduationAfterEightSemesters } = require('../dist/common/academic-term');
+
+test('a 2026 fall sophomore completes eight semesters in February 2029', () => {
+  assert.deepEqual(graduationAfterEightSemesters({ year: 2026, termCode: '20' }, 4),
+    { graduationYear: 2029, graduationMonth: 2 });
+  assert.deepEqual(graduationAfterEightSemesters({ year: 2026, termCode: '20' }, 3),
+    { graduationYear: 2029, graduationMonth: 8 });
+});
 
 test('profile onboarding persists for the authenticated account and validates updates', async (t) => {
   process.env.DATABASE_URL = 'postgresql://test@localhost/test';
@@ -80,10 +88,12 @@ test('profile onboarding persists for the authenticated account and validates up
   const details = await registered.json();
   assert.equal(details.meta.warnings[0].code, 'CURRICULUM_POLICY_UNKNOWN');
   assert.equal(details.data.studentDataVersion, 1);
-  assert.deepEqual(details.data.profile, {
+  const { studySemester, estimatedGraduation, ...registeredProfile } = details.data.profile;
+  assert.deepEqual(registeredProfile, {
     departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: null,
-    volunteerHours: null, languageScores: [], revision: 1,
+    expectedGraduation: null, volunteerHours: null, languageScores: [], revision: 1,
   });
+  assert.deepEqual(estimatedGraduation, graduationAfterEightSemesters(currentAcademicTerm(), studySemester));
 
   assert.equal((await patch({
     expectedRevision: 1, languageScores: [{ examType: 'TOEIC', score: 800, takenAt: '2025-02-30' }],
@@ -94,7 +104,11 @@ test('profile onboarding persists for the authenticated account and validates up
     { examType: 'TOEIC', score: 850, grade: null, takenAt: '2025-03-17' },
     { examType: 'OPIc', score: null, grade: 'IH', takenAt: null },
   ];
-  const changes = { expectedRevision: 1, volunteerHours: 12.5, languageScores: scores };
+  assert.equal((await patch({
+    expectedRevision: 1, expectedGraduation: { graduationYear: 2025, graduationMonth: 2 },
+  })).status, 422);
+  const expectedGraduation = { graduationYear: 2027, graduationMonth: 2 };
+  const changes = { expectedRevision: 1, volunteerHours: 12.5, languageScores: scores, expectedGraduation };
   const saved = await patch(changes);
   assert.equal(saved.status, 200);
   assert.equal((await saved.json()).data.studentDataVersion, 2);
@@ -106,6 +120,7 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.equal(current.profileCompleted, true);
   assert.equal(current.profile.volunteerHours, 12.5);
   assert.deepEqual(current.profile.languageScores, scores);
+  assert.deepEqual(current.profile.expectedGraduation, expectedGraduation);
   assert.equal((await (await me('sipyeong_session=' + anotherToken)).json()).data.profile, null);
 
   await database.query('INSERT INTO curriculum_rules VALUES (34, 2023, 2024)');
@@ -125,4 +140,16 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.deepEqual(cleared.data.profile.languageScores, []);
   assert.equal(cleared.data.studentDataVersion, 3);
   assert.equal(cleared.meta.warnings, undefined);
+  assert.deepEqual(cleared.data.profile.expectedGraduation, expectedGraduation);
+  const august = { graduationYear: 2027, graduationMonth: 8 };
+  assert.equal((await patch({ expectedRevision: 3, expectedGraduation: august })).status, 200);
+  assert.deepEqual((await (await me()).json()).data.profile.expectedGraduation, august);
+  assert.equal((await patch({ expectedRevision: 4, expectedGraduation: null })).status, 200);
+  assert.equal((await (await me()).json()).data.profile.expectedGraduation, null);
+  assert.equal((await patch({ expectedRevision: 5, studySemester: 9 })).status, 422);
+  const automatic = await patch({ expectedRevision: 5, studySemester: 4 });
+  assert.equal(automatic.status, 200);
+  const automaticProfile = (await automatic.json()).data.profile;
+  assert.equal(automaticProfile.studySemester, 4);
+  assert.deepEqual(automaticProfile.expectedGraduation, graduationAfterEightSemesters(currentAcademicTerm(), 4));
 });

@@ -1,0 +1,28 @@
+.hero { padding: 30px 20px 20px; color: white; background: linear-gradient(155deg, #1d54a2, #487bb8); }
+.hero p { margin: 0 0 4px; font-size: 13px; color: #eff6ff; }
+.hero h1 { margin: 0 0 14px; font-size: 28px; font-weight: 750; }
+.heroSummary { display: flex; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid #ffffff44; font-size: 14px; }
+.sidebar { display: grid; gap: 12px; }
+.sidebar > a { order: 0; }
+.loading { padding: 20px; }
+.rule { padding: 13px 0; scroll-margin-top: 16px; }
+.rule + .rule { border-top: 1px solid var(--line); }
+.rule:target { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 6px; }
+.ruleHeading { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+.ruleHeading h3 { flex: 1; margin: 0; font-size: 15px; font-weight: 650; }
+.ruleHeading strong { color: var(--muted); text-align: right; font-size: 13px; font-weight: 650; }
+.ruleHeading strong[data-status="expected"] { color: var(--accent); }
+.statusDot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--muted); }
+.statusDot[data-status="met"] { background: #18a36a; }
+.statusDot[data-status="expected"] { background: var(--accent); }
+.progress { display: grid; grid-template-columns: 26px 1fr auto; gap: 9px; align-items: center; margin: 6px 0 0 16px; color: var(--muted); font-size: 13px; }
+.courseNote, .candidates { margin: 7px 0 0 16px; color: var(--muted); font-size: 13px; }
+.courseNote b { color: var(--accent); }
+.candidates summary { cursor: pointer; }
+.candidates ul { columns: 2 145px; margin: 5px 0; padding-left: 16px; list-style: disc; }
+.candidates li { break-inside: avoid; }
+.creditList { margin: 0 0 8px; font-size: 14px; }
+.creditList div { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.creditList dd { margin: 0; font-weight: 700; white-space: nowrap; }
+.sourceLink { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 14px; }
+@media (min-width: 900px) { .hero { padding-inline: 40px; } .sidebar { position: sticky; top: 20px; } }

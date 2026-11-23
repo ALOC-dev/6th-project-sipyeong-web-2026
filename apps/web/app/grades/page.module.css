@@ -21,6 +21,7 @@
 .card { min-width: 0; padding: 22px 20px; border-radius: 12px; background: var(--surface); }
 .card h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
 .cardHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 14px; }
+.uploadLink { color: var(--accent); font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
 .cardHeading h2 { display: flex; align-items: center; gap: 6px; }
 .currentSummary { margin: 8px 0 0; }
 .currentSummary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 0; }

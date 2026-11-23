@@ -18,7 +18,7 @@
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 6px; color: rgb(255 255 255 / 78%); }
 .sectionHeading h2 { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.55; }
 .semesters { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0; text-align: center; }
-.semester { display: grid; justify-items: center; align-content: start; gap: 6px; min-width: 0; padding: 7px 0 8px; border-radius: 10px; color: rgb(255 255 255 / 80%); font-size: 12px; font-weight: 600; line-height: 1.2; }
+.semester { display: grid; justify-items: center; align-content: start; gap: 6px; min-width: 0; padding: 7px 0 8px; border-radius: 10px; color: rgb(255 255 255 / 80%); font-size: 11px; font-weight: 600; line-height: 1.2; }
 .semester svg { width: 26px; height: 26px; }
 .current { color: white; background: rgb(255 255 255 / 18%); }
 .periods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 10px var(--px) 0; padding-top: 12px; border-top: .5px solid rgb(255 255 255 / 28%); }
@@ -34,3 +34,5 @@
 .hero a:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 :global(html[data-theme="dark"]) .hero { background-image: linear-gradient(180deg, #060C22, #122550) !important; }
 @media (min-width: 900px) { .hero { --px: 40px; } }
+.dates a { color: white; text-decoration: underline; text-underline-offset: .18em; }
+@media (max-width: 560px) { .semesters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

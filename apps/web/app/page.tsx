@@ -1,192 +1,136 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loadAccount } from "./academic-account";
-import { api, displayNumber, listPages, type GradeSummary, type SemesterGrade } from "./api-client";
+import { displayNumber } from "./api-client";
+import { AppIcon } from "./app-icon";
+import { HelpButton } from "./help-button";
+import { HomeHelpDialog, type HomeHelpKind } from "./home-help-dialog";
+import { HomeHero } from "./home-hero";
+import { getHomeSemesters, loadHome, regularTerm, requirementLabel, requirementProgress } from "./home-data";
+import { forecastTargetGpa } from "./grades/grade-utils";
+import { useSemesterTarget } from "./semester-target";
+import { formatGraduationPeriod, getLastStudySemester, getRemainingSemesterCount } from "./profile-model";
 import { useApi } from "./use-api";
-import styles from "./page.module.css";
-
-type WeatherType =
-  | "rainbow"
-  | "sunny"
-  | "partly"
-  | "cloudy"
-  | "rain"
-  | "pending";
-
-/* 평점을 날씨로 변환 */
-function getWeatherType(gpa: number | null): WeatherType {
-  if (gpa === null) return "pending";
-  if (gpa >= 4.5) return "rainbow";
-  if (gpa >= 4.0) return "sunny";
-  if (gpa >= 3.5) return "partly";
-  if (gpa >= 3.0) return "cloudy";
-  return "rain";
-}
-
-/* 날씨 아이콘 */
-function WeatherIcon({ type }: { type: WeatherType }) {
-  const labels: Record<WeatherType, string> = {
-    rainbow: "무지개",
-    sunny: "맑음",
-    partly: "구름 조금",
-    cloudy: "흐림",
-    rain: "비",
-    pending: "성적 미확정",
-  };
-
-  const showSun = type === "sunny" || type === "partly";
-  const showCloud =
-    type === "partly" || type === "cloudy" || type === "rain";
-
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      role="img"
-      aria-label={labels[type]}
-    >
-      {type === "rainbow" && (
-        <g strokeWidth="3" strokeLinecap="round">
-          <path d="M3 25a13 13 0 0 1 26 0" stroke="#FF8795" />
-          <path d="M7 25a9 9 0 0 1 18 0" stroke="#FFD15C" />
-          <path d="M11 25a5 5 0 0 1 10 0" stroke="#86E0CA" />
-        </g>
-      )}
-
-      {showSun && (
-        <g
-          stroke="#FFD15C"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <circle cx="15" cy="13" r="5" fill="#FFD15C" />
-          <path d="M15 2v3M15 21v3M4 13h3M23 13h3" />
-          <path d="m7 5 2 2m12 12 2 2M7 21l2-2M21 7l2-2" />
-        </g>
-      )}
-
-      {showCloud && (
-        <g
-          transform={
-            type === "rain" ? "translate(0 -4)" : undefined
-          }
-        >
-          <path
-            d="M8 27a5 5 0 0 1-1-10 7 7 0 0 1 13-2 6 6 0 1 1 3 12H8Z"
-            fill={type === "rain" ? "#C5D5E8" : "#FFFFFF"}
-          />
-        </g>
-      )}
-
-      {type === "rain" && (
-        <g
-          stroke="#BDE7FF"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="m10 26-1 3" />
-          <path d="m17 26-1 3" />
-          <path d="m24 26-1 3" />
-        </g>
-      )}
-
-      {type === "pending" && (
-        <g stroke="currentColor" strokeWidth="1.5">
-          <circle
-            cx="16"
-            cy="16"
-            r="10"
-            strokeDasharray="3 3"
-            opacity=".5"
-          />
-          <path d="M12 16h8" strokeLinecap="round" />
-        </g>
-      )}
-    </svg>
-  );
-}
-
-/* 메뉴 아이콘 */
-
-async function loadHome(signal: AbortSignal) {
-  const account = await loadAccount(signal);
-  if (!account.me.profileCompleted) return { account };
-  const [summary, semesters] = await Promise.all([
-    api<GradeSummary>("grades/summary", { signal }),
-    listPages<SemesterGrade>("grades/semesters", signal),
-  ]);
-  return { account, summary: summary.data, semesters };
-}
+import styles from "./home.module.css";
 
 export default function Home() {
   const router = useRouter();
   const { data, error, reload } = useApi(loadHome);
+  const [help, setHelp] = useState<HomeHelpKind | null>(null);
   const incomplete = data?.account.me.profileCompleted === false;
 
   useEffect(() => {
     if (incomplete) router.replace("/start");
   }, [incomplete, router]);
 
-  if (!data?.summary) {
-    return (
-      <main className={styles.page}>
-        <section className={styles.card}>
-          <h1>시평</h1>
-          {error ? <><p role="alert">{error}</p><button type="button" onClick={reload}>다시 시도</button></>
-            : <p role="status">학업 정보를 불러오는 중…</p>}
-        </section>
-      </main>
-    );
+  const profile = data?.account.me.profile;
+  const overview = data?.overview;
+  const [target] = useSemesterTarget(data?.account.me.userId ?? "", overview?.currentTerm ?? { year: 0, termCode: "" });
+  if (!profile || !overview || !data) {
+    return <main className={styles.page}>
+      <section className={styles.card}>
+        <h1>시평</h1>
+        {error ? <><p role="alert">{error}</p><button type="button" onClick={reload}>다시 시도</button></>
+          : <p role="status">학업 정보를 불러오는 중…</p>}
+      </section>
+    </main>;
   }
 
-  const { account, summary, semesters = [] } = data;
-  const profile = account.me.profile;
-  const department = account.departments.find((item) => item.departmentId === profile?.departmentId);
+  const department = data.account.departments.find(item => item.departmentId === profile.departmentId);
+  const term = regularTerm(overview.currentTerm.termCode);
+  const currentSemester = `${overview.currentTerm.year}-${term}`;
+  const graduation = profile.expectedGraduation ?? profile.estimatedGraduation;
+  const lastSemester = graduation && getLastStudySemester(graduation.graduationYear, graduation.graduationMonth);
+  const remaining = graduation ? getRemainingSemesterCount(currentSemester, graduation.graduationYear, graduation.graduationMonth) : null;
+  const requirements = overview.graduation.requirements.filter(rule =>
+    rule.unit === "credits" && rule.status !== "met" && rule.currentValue !== null && rule.requiredValue !== null);
+  const certification = overview.graduation.requirements
+    .filter(rule => rule.status !== "met" && ["language_certification", "volunteer"].includes(rule.type))
+    .map(rule => `${rule.title} 확인 필요`);
+  const classesEnd = overview.calendar.academicTerm.year === overview.currentTerm.year &&
+    overview.calendar.academicTerm.termCode === overview.currentTerm.termCode
+    ? overview.calendar.classesEndOn?.slice(5).replace("-", ".") : undefined;
+  const forecast = forecastTargetGpa(overview.gpa.basis, overview.currentSemester.credits, target);
+  const summary = [
+    { label: "평점", detail: overview.gpa.major === null ? "전공 평점 자료 없음" : `전공 ${displayNumber(overview.gpa.major, 2)}`,
+      value: displayNumber(overview.gpa.overall, 2), href: "/grades" },
+    { label: "인정 학점", detail: overview.credits.earned === null ? "취득 학점 확인 필요" : `취득 ${overview.credits.earned}학점`,
+      value: overview.credits.recognized === null ? "기준 미등록" : `${overview.credits.recognized}학점`, href: "/req#recognized-credits" },
+    { label: "이번 학기", detail: [`${overview.currentSemester.courseCount}과목`, classesEnd && `${classesEnd} 종강`].filter(Boolean).join(" · "),
+      value: `${overview.currentSemester.credits}학점`, href: "/grades?tab=planner" },
+    { label: "남은 학기", detail: graduation ? `${formatGraduationPeriod(graduation)} 졸업 예정` : "졸업 예정 시기 확인 필요",
+      value: displayNumber(remaining, undefined, "학기"), href: "/start?edit=1" },
+  ];
 
-  return (
-    <main className={styles.page}>
-      <header className={styles.hero}>
-        <p className={styles.student}>{department?.name}{profile && ` · ${profile.admissionYear}학번`}</p>
-        <h1 className={styles.title}>학업 현황</h1>
-        <section className={styles.semesterSection}>
-          <div className={styles.sectionHeading}><h2>학기별 평점</h2></div>
-          {semesters.length === 0 ? <p>등록된 성적이 없습니다.</p> : (
-            <div className={styles.semesterGrid}>
-              {semesters.map(({ semester, gpa }) => (
-                <div key={semester.semesterId} className={styles.semester}>
-                  <span>{semester.name}</span>
-                  <WeatherIcon type={getWeatherType(gpa)} />
-                  <strong>{displayNumber(gpa, 2)}</strong>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </header>
-      <div className={styles.content}>
-        <section className={`${styles.card} ${styles.summaryCard}`}>
-          <div className={styles.cardHeading}><h2>성적 요약</h2><Link href="/grades">학점 상세 ›</Link></div>
-          <dl className={styles.summaryList}>
-            {[
-              ["취득학점", displayNumber(summary.earnedCredits, undefined, "학점")],
-              ["수강 중인 학점", displayNumber(summary.enrolledCredits, undefined, "학점")],
-              ["누적 평균평점", summary.gpa === null ? "—" : `${displayNumber(summary.gpa, 2)} / ${summary.gradeScale}`],
-            ].map(([label, value]) => (
-              <div className={styles.summaryRow} key={label}><dt>{label}</dt><dd><strong>{value}</strong></dd></div>
-            ))}
-          </dl>
-          {summary.warnings.filter((warning) => warning.code !== "REQUIREMENT_CREDITS_UNAVAILABLE").map((warning) => (
-            <p className={styles.warning} key={warning.code}>{warning.message}</p>
-          ))}
-        </section>
+  return <main className={styles.page}>
+    <HomeHero student={[department?.name, `${profile.admissionYear}학번`, `${overview.currentTerm.year}년 ${term}학기`].filter(Boolean).join(" · ")}
+      admissionYear={profile.admissionYear} graduation={graduation}
+      semesters={getHomeSemesters(overview, profile.admissionYear, lastSemester || undefined, target)}
+      certification={certification} calendar={overview.calendar} studySemester={profile.studySemester} />
+
+    <div className={styles.content}>
+      <div className={styles.primaryColumn}>
         <section className={styles.card}>
-          <h2>성적 파일</h2>
-          <Link href="/my">내 정보에서 파일 업데이트 ›</Link>
+          <div className={styles.cardHeading}>
+            <h2>요약 <HelpButton label="요약 기준 보기" onClick={() => setHelp("summary")} /></h2>
+            <Link href="/grades" className={styles.cardMore}>성적 기록<AppIcon name="chevron" /></Link>
+          </div>
+          <div className={styles.summaryList}>
+            {summary.map(item => <Link className={styles.summaryRow} key={item.label} href={item.href}>
+              <span><span className={styles.summaryLabel}>{item.label}</span><span className={styles.description}>{item.detail}</span></span>
+              <strong>{item.value}</strong><AppIcon name="chevron" className={styles.chevron} />
+            </Link>)}
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.cardHeading}>
+            <h2>남은 졸업요건 <HelpButton label="졸업요건 진행률 기준 보기" onClick={() => setHelp("requirements")} /></h2>
+            <Link href="/req" className={styles.cardMore}>전체<AppIcon name="chevron" /></Link>
+          </div>
+          {!overview.graduation.requirementSet ? <p className={styles.description}>적용할 졸업요건이 아직 등록되지 않았어요.</p>
+            : requirements.length === 0 && <p className={styles.description}>상세 판정은 졸업요건 탭에서 확인할 수 있어요.</p>}
+          {requirements.map(rule => {
+            const current = requirementProgress(rule.currentValue, rule.requiredValue);
+            const projected = requirementProgress(rule.projectedValue, rule.requiredValue);
+            return <Link href={`/req#rule-${encodeURIComponent(rule.code)}`} key={rule.code} className={styles.requirement}>
+              <div className={styles.requirementRow}>
+                <span>{rule.title}</span>
+                <div className={styles.requirementTrack} aria-hidden="true">
+                  <span className={styles.plannedFill} style={{ width: `${projected}%` }} />
+                  <span className={styles.earnedFill} style={{ width: `${current}%` }} />
+                </div>
+                <strong className={rule.status === "expected" ? styles.blueText : undefined}>{requirementLabel(rule)}</strong>
+                <AppIcon name="chevron" className={styles.chevron} />
+              </div>
+            </Link>;
+          })}
         </section>
       </div>
-    </main>
-  );
+
+      <div className={styles.secondaryColumn}>
+        <Link href="/degrees" className={`${styles.card} ${styles.degreeCard}`}>
+          <h2>마이크로디그리</h2>
+          <AppIcon name="chevron" className={styles.chevron} />
+        </Link>
+
+        <section className={styles.card}>
+          <div className={styles.cardHeading}>
+            <h2>누적 평점 <HelpButton label="누적 평점 안내 보기" onClick={() => setHelp("gpa")} /></h2>
+            <Link href="/grades?tab=planner" className={styles.cardMore}>플래너<AppIcon name="chevron" /></Link>
+          </div>
+          <p className={styles.gpaChange}>
+            <span aria-label="현재 누적 평점">{displayNumber(overview.gpa.overall, 2)}</span>
+            {forecast !== null && <><span aria-hidden="true">→</span><strong aria-label="예상 누적 평점">{forecast.toFixed(2)}</strong></>}
+          </p>
+          <p className={styles.description}>{forecast !== null
+            ? `이번 학기 목표 ${target.toFixed(2)} · ${overview.currentSemester.credits}학점 반영`
+            : overview.currentSemester.credits > 0 ? "평점 산정에 필요한 성적 자료가 없어요." : "이번 학기 수강 과목을 등록하면 예상 평점을 볼 수 있어요."}</p>
+        </section>
+      </div>
+    </div>
+    {help && <HomeHelpDialog kind={help} onClose={() => setHelp(null)} />}
+  </main>;
 }

@@ -30,6 +30,6 @@ export function PredictorSettings({ form, onChange, onReset, onClose }: {
     <div className={styles.assumptionGrid}>{([{ key: "aPlusShare", label: "A등급 중 A+ 비중(%)" }, { key: "bPlusShare", label: "B등급 중 B+ 비중(%)" }] as const).map((field) => <label key={field.key}>{field.label}<input type="number" min="0" max="100" step="any" value={form[field.key]} onChange={(event) => onChange(field.key, event.target.value)} /></label>)}</div>
     <p className={styles.hint}>기본값 50%는 각 묶음을 +와 0에 반씩 나누는 가정이에요. 학교가 정한 세부 등급 비율을 뜻하지 않아요.</p>
     <details className={styles.formula}><summary>점수·등수 환산 가정 보기</summary><p>중간은 등수 ÷ 인원 × 100, 출석은 100 − 득점률, 과제는 (100 − 득점률) × 2를 5~95 범위로 바꾼 뒤 평가 비율로 합산해요. 실제 성적 분포로 검증된 모형은 아니에요.</p><p>출석·과제 점수를 비우면 각각 득점률 100%·80%를 사용해요. 강의계획서에 맞춰 반영 비율과 만점을 수정해주세요.</p></details>
-    <div className={styles.settingsActions}><button type="button" className={styles.textButton} onClick={onReset}>예시 입력으로 초기화</button><button type="button" className={styles.applyButton} onClick={() => ref.current?.close()}>확인</button></div>
+    <div className={styles.settingsActions}><button type="button" className={styles.textButton} onClick={onReset}>기본값으로 초기화</button><button type="button" className={styles.applyButton} onClick={() => ref.current?.close()}>확인</button></div>
   </dialog>;
 }
