@@ -43,34 +43,27 @@
 .settings { min-width: 0; align-self: start; padding: 0 20px; border-radius: 16px; background: var(--surface); }
 .settingRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; min-height: 65px; padding: 15px 0; border: 0; background: transparent; color: var(--ink); text-align: left; }
 .settingRow + .settingRow { border-top: 1px solid var(--line); }
-/* 설정 카드 바깥의 독립 영역이다. PC에서는 두 열 전체를 차지하고,
-   모바일에서도 버튼과 오류 문구를 가로 가운데에 배치한다. */
+/* 카드 밖에 있던 로그아웃을 설정의 마지막 행으로 옮겼다. */
 .logoutArea {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0 6px;
+  width: 100%;
+  border-top: 1px solid var(--line);
 }
-/* 등록 버튼처럼 작은 타원형으로 만들고, 로그아웃의 강조 색상은 유지한다. */
 .page .logoutButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  padding: 8px 14px;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 15px 0;
   border: 0;
-  border-radius: 999px;
-  background: var(--soft);
-  color: var(--danger);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1.5;
+  text-align: left;
 }
 /* 요청 중에는 다시 누르지 못하게 하고 진행 중임을 표시한다. */
 .page .logoutButton:disabled { cursor: wait; opacity: .65; }
-.logoutError { max-width: 440px; margin: 0; color: var(--danger); font-size: 13px; line-height: 1.7; text-align: center; }
+.logoutError { margin: 0 0 15px; color: var(--danger); font-size: 13px; line-height: 1.7; text-align: left; }
 .settingRow strong { font-size: 14px; font-weight: 700; }
 .settingValue { display: inline-flex; align-items: center; gap: 16px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .settingValue > span { font-size: 22px; font-weight: 400; }
@@ -113,8 +106,9 @@
 .dialogFooter .primaryButton { margin-right: 0; }
 
 @media (min-width: 768px) {
-  .page { width: calc(100% - 48px); max-width: 1100px; min-height: calc(100dvh - 48px); margin: 24px auto; padding-bottom: 24px; border-radius: 20px; }
-  .header { padding: 28px 30px; border-radius: 20px 20px 0 0; }
+  /* 학점 탭과 같은 1120px 너비로 맞추고 페이지 위쪽 여백을 없앤다. */
+  .page { width: 100%; max-width: 1120px; min-height: 100dvh; margin: 0 auto; padding-bottom: 24px; border-radius: 0; }
+  .header { padding: 28px 30px; border-radius: 0; }
   .sun { right: 30px; }
   .content { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; padding: 24px; }
   .bottomNav { order: -1; top: 16px; bottom: auto; margin-bottom: 20px; padding: 15px; border: 1px solid var(--line); border-radius: 16px; }
@@ -128,3 +122,8 @@
   .fileText h2 { font-size: 14px; }
   .page .updateButton { padding: 8px 10px; font-size: 12px; }
 }
+
+
+/* 모달 대신 본문 화면을 바꾼다. 숨긴 화면의 파일 선택 상태는 메모리에 남는다. */
+.overview { display: flex; flex: 1; flex-direction: column; min-height: inherit; }
+.overview[hidden] { display: none; }

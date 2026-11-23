@@ -1,0 +1,7 @@
+.icon { display: block; overflow: visible; }
+.hero { --weather-cloud: #fff; }
+.card { --weather-cloud: #C3CDD9; }
+.night { display: none; }
+:global(html[data-theme="dark"]) .day { display: none; }
+:global(html[data-theme="dark"]) .night { display: inline; }
+:global(html[data-theme="dark"]) .card { --weather-cloud: #6E7A8B; }
