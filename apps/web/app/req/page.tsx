@@ -1,6 +1,5 @@
 "use client";
 
-import { AcademicNav } from "../academic-nav";
 import { api, displayNumber } from "../api-client";
 import { useApi } from "../use-api";
 import styles from "../page.module.css";
@@ -59,7 +58,6 @@ export default function RequirementsPage() {
           </dl>
         </section>}
       </div>
-      <AcademicNav current="/req" />
     </main>
   );
 }

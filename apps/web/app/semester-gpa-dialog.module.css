@@ -1,0 +1,20 @@
+.dialog { position: fixed; inset: 0; width: min(520px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 30px 20px 22px; overflow-y: auto; border: 0; border-radius: 24px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 20%); }
+.dialog::backdrop { background: rgb(15 23 42 / 42%); }
+.handle { position: absolute; top: 9px; left: 50%; width: 36px; height: 4px; border-radius: 999px; background: var(--line); transform: translateX(-50%); }
+.dialog .closeButton { position: absolute; top: 12px; right: 14px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--soft); color: var(--muted); font: inherit; font-size: 23px; line-height: 1; cursor: pointer; }
+.closeButton:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.dialog h2 { margin: 0 38px 14px 0; font-size: 23px; font-weight: 750; line-height: 1.4; }
+.weatherList { margin: 0; padding: 0; list-style: none; }
+.weatherList li { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 8px; padding: 12px 0; }
+.weatherList li + li { border-top: 1px solid var(--line); }
+.icon { display: block; width: 28px; height: 28px; }
+.icon svg { display: block; width: 100%; height: 100%; }
+.weatherList strong { font-size: 16px; font-weight: 700; }
+.dialog h3 { margin: 22px 0 2px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.basis { margin: 0; }
+.basis > div { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 12px 0; }
+.basis > div + div { border-top: 1px solid var(--line); }
+.basis dt { color: var(--muted); font-size: 14px; font-weight: 650; }
+.basis dd { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.5; word-break: keep-all; }
+.note { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+@media (max-width: 359px) { .dialog { padding-right: 16px; padding-left: 16px; } .basis > div { grid-template-columns: 82px minmax(0, 1fr); gap: 8px; } .basis dd { font-size: 14px; } }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AcademicNav, Icon } from "../academic-nav";
+import { Icon } from "../academic-nav";
 import { loadAccount } from "../academic-account";
 import { TimetableTermSelect, uploadInfo } from "../academic-upload";
 import { change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
@@ -237,7 +237,7 @@ export default function MyPage() {
 
       <div className={styles.content}>
         {warnings.map((warning) => <p key={warning.code} role="status">{warning.message}</p>)}
-        <section className={styles.fileColumn} aria-label="학업 자료">
+        <section id="academic-files" className={styles.fileColumn} aria-label="학업 자료">
           <div className={styles.fileCard}>
             <span className={styles.fileIcon}><Icon name="file" /></span>
             <div className={styles.fileText}>
@@ -289,11 +289,7 @@ export default function MyPage() {
             <strong>저장 위치</strong>
             <span className={styles.settingValue}>시평 서버</span>
           </div>
-        </section>
-
-        {/* 흰색 설정 section 밖에 배치해 페이지 배경 위에 표시한다.
-            logoutArea가 PC의 두 열 전체를 사용하므로 화면 가운데에 정렬된다. */}
-        <div className={styles.logoutArea}>
+          <div className={styles.logoutArea}>
             <button
               type="button"
               className={styles.logoutButton}
@@ -304,15 +300,14 @@ export default function MyPage() {
             >
               {isLoggingOut ? "로그아웃 중…" : "로그아웃"}
             </button>
-          {logoutError && (
-            <p id="logout-error" className={styles.logoutError} role="alert">
-              {logoutError}
-            </p>
-          )}
-        </div>
+            {logoutError && (
+              <p id="logout-error" className={styles.logoutError} role="alert">
+                {logoutError}
+              </p>
+            )}
+          </div>
+        </section>
       </div>
-
-      <AcademicNav current="/my" />
 
       {/* native dialog는 배경 클릭 방지, 팝업 안 포커스 이동, Esc 종료를 지원한다. */}
       <dialog

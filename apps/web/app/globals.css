@@ -4,23 +4,24 @@
    개별 페이지에서 같은 변수를 다시 선언하면 전역 테마가 가려지므로 여기서 관리한다. */
 :root {
   color-scheme: light;
-  --outer: #e9edf2;
-  --canvas: #f3f3f9;
-  --surface: #ffffff;
-  --ink: #182238;
-  --muted: #65738b;
-  --line: #e7ebf2;
-  --soft: #f2f4f9;
-  --accent: #0868c9;
-  --track: #e5eaf2;
-  --planned: #a5c4e8;
-  --danger: #cf3543;
+  --outer: #F1F3F8;
+  --canvas: #F1F3F8;
+  --surface: #FFFFFF;
+  --ink: #111A2E;
+  --muted: #697386;
+  --secondary: #465066;
+  --line: #E3E7EE;
+  --soft: #F1F3F8;
+  --accent: #005EB8;
+  --track: #E6EAF1;
+  --planned: #A5C4E8;
+  --danger: #CC3F45;
   --focus: #83b9f5;
-  --hero-start: #174d97;
-  --hero-end: #4079bd;
+  --hero-start: #124D9D;
+  --hero-end: #5B98DC;
   --hero-ink: #ffffff;
   --hero-muted: #d7e7fc;
-  --button-bg: #1768bd;
+  --button-bg: #005EB8;
   --on-button: #ffffff;
 
   /* 기존 Tailwind 색상 이름도 같은 전역 테마를 가리키게 한다. */
@@ -32,20 +33,21 @@
    시스템 자동 감지 규칙은 사용하지 않고 사용자가 선택한 두 가지 테마만 적용한다. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --outer: #0e1522;
-  --canvas: #151c2b;
-  --surface: #202b3d;
-  --ink: #edf3fc;
-  --muted: #abb8cb;
-  --line: #354258;
-  --soft: #2b374c;
-  --accent: #78b6ff;
-  --track: #354258;
-  --planned: #42658e;
-  --danger: #ff949c;
+  --outer: #05070D;
+  --canvas: #05070D;
+  --surface: #10141E;
+  --ink: #EEF1F6;
+  --muted: #8A92A3;
+  --secondary: #BFC6D3;
+  --line: #242A37;
+  --soft: #1A1F2B;
+  --accent: #5AA2EE;
+  --track: #252B38;
+  --planned: #2F5E96;
+  --danger: #FF7B80;
   --focus: #83b9f5;
-  --hero-start: #12315d;
-  --hero-end: #244970;
+  --hero-start: #060C22;
+  --hero-end: #122550;
   --hero-ink: #ffffff;
   --hero-muted: #d7e7fc;
 }
@@ -53,17 +55,22 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-pretendard);
-  --font-mono: monospace;
+  --font-sans: var(--app-font);
+  --font-mono: ui-monospace, monospace;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* 본문뿐 아니라 버튼·입력창·팝업도 같은 폰트를 상속한다. */
 body {
-  margin: 0;
-  background: var(--outer);
-  color: var(--ink);
-  font-family: var(--font-pretendard), "Noto Sans KR", "Malgun Gothic", sans-serif;
+  margin: 0; background: var(--outer); color: var(--ink);
+  --app-font: var(--font-pretendard), "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-family: var(--app-font); font-size: 16px; font-weight: 400; line-height: 1.55;
+  letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere;
 }
+button, input, select, textarea { font-family: inherit; color: inherit; letter-spacing: inherit; }
+dialog { font-family: var(--app-font); }
+h1, h2, h3 { text-wrap: balance; }

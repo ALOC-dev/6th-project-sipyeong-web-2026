@@ -1,0 +1,83 @@
+/* 학적 정보 변경도 공통 AppShell 안의 본문으로 표시한다.
+   fixed·showModal·backdrop을 사용하지 않아 왼쪽 메뉴를 가리거나 비활성화하지 않는다. */
+.editor {
+  width: 100%;
+  min-height: inherit;
+  margin: 0;
+  padding: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.editor :is(button, select) { font: inherit; }
+.editor :is(button, select) { cursor: pointer; }
+.editor :is(button, select):focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+/* 단계 표시 없이 왼쪽 뒤로 가기와 제목을 표시한다. */
+.header { padding: 12px 18px 20px; color: var(--hero-ink); background: linear-gradient(155deg, var(--hero-start), var(--hero-end)); }
+.headerInner { position: relative; width: 100%; margin: 0; text-align: left; }
+.editor .backButton { display: flex; align-items: center; justify-content: flex-start; gap: 4px; width: max-content; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font-weight: 700; line-height: 20px; text-align: left; }
+.backButton svg { flex: 0 0 18px; }
+.header h2 { margin: 18px 0 0; font-size: 30px; line-height: 1.25; font-weight: 750; }
+.sun { position: absolute; top: 0; right: 0; width: 28px; height: 28px; }
+
+/* 모바일은 입력 카드 아래 기준표, PC는 입력 카드 왼쪽·기준표 오른쪽 */
+.form { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; gap: 20px; width: 100%; max-width: 1440px; margin: 0 auto; padding: 24px 20px 32px; }
+.card { min-width: 0; padding: 24px; border-radius: 16px; background: var(--surface); }
+.field + .field { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.field label, .switchRow label { display: block; font-size: 14px; font-weight: 700; }
+.field select { width: 100%; margin-top: 14px; padding: 14px 16px; border: 1px solid transparent; border-radius: 14px; background: var(--soft); color: var(--ink); font-size: 16px; font-weight: 700; line-height: 20px; }
+.switchRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.switch { position: relative; flex: 0 0 52px; width: 52px; height: 30px; }
+.switch input { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.switchTrack { position: absolute; inset: 0; border-radius: 999px; background: var(--muted); pointer-events: none; }
+.switchTrack::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: white; box-shadow: 0 1px 4px rgb(0 0 0 / 15%); transition: transform .15s ease; }
+.switch input:checked + .switchTrack { background: var(--button-bg); }
+.switch input:checked + .switchTrack::after { transform: translateX(22px); }
+.switch input:focus-visible + .switchTrack { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+.side { display: grid; min-width: 0; gap: 16px; }
+.card h3 { margin: 0 0 20px; color: var(--muted); font-size: 14px; font-weight: 650; }
+.curriculum { margin: 0; padding-bottom: 14px; color: var(--muted); font-size: 16px; border-bottom: 1px solid var(--line); }
+.requirements { margin: 0; }
+.requirements > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; }
+.requirements > div + div { border-top: 1px solid var(--line); }
+.requirements > div:last-child { padding-bottom: 0; }
+.requirements dt { color: var(--muted); font-size: 15px; }
+.requirements dd { margin: 0; font-size: 16px; font-weight: 700; text-align: right; }
+.editor .saveButton { display: block; width: 100%; padding: 16px; border: 0; border-radius: 999px; background: var(--button-bg); color: var(--on-button); font-size: 16px; font-weight: 700; }
+.notice, .error { margin: 14px 0 0; font-size: 13px; line-height: 1.7; }
+.notice { color: var(--muted); }
+.error { color: var(--danger); }
+
+@media (max-width: 767px) {
+  .form { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px 14px 28px; }
+  .card { padding: 24px 20px; }
+}
+@media (min-width: 768px) {
+  .header { padding: 20px 32px 28px; }
+  .header h2 { font-size: 32px; }
+  .sun { right: 0; }
+  .form { padding: 24px 32px 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .switchTrack::after { transition: none; } }
+
+
+/* 설명은 스위치 아래 전체 너비로 배치해 좁은 화면에서도 줄바꿈된다. */
+.engineeringDescription {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 제목은 화면 전환 시 포커스를 받지만 테두리를 표시하지 않는다. */
+.header h2:focus { outline: none; }

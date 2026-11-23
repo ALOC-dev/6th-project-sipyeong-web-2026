@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AcademicNav } from "./academic-nav";
 import { loadAccount } from "./academic-account";
 import { api, displayNumber, listPages, type GradeSummary, type SemesterGrade } from "./api-client";
 import { useApi } from "./use-api";
@@ -188,7 +187,6 @@ export default function Home() {
           <Link href="/my">내 정보에서 파일 업데이트 ›</Link>
         </section>
       </div>
-      <AcademicNav current="/" />
     </main>
   );
 }
