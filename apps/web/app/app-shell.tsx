@@ -13,9 +13,9 @@ import styles from "./app-shell.module.css";
 
 const navigation: { label: string; mobileLabel?: string; icon: AppIconName; href?: string }[] = [
   { label: "홈", icon: "home", href: "/" },
-  { label: "졸업요건", icon: "checklist" },
+  { label: "졸업요건", icon: "checklist", href: "/req" },
   { label: "마이크로디그리", mobileLabel: "디그리", icon: "award", href: "/degrees" },
-  { label: "로드맵", icon: "road" },
+  { label: "로드맵", icon: "road", href: "/road" },
   { label: "학점", icon: "chart", href: "/grades" },
   { label: "내 정보", icon: "user", href: "/my" },
 ];
@@ -39,6 +39,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       }}>{content}</Link>;
     });
   }
+
+  if (pathname === "/login" || pathname === "/start") return <>{children}</>;
 
   return <div className={styles.shell}>
     <aside className={styles.sidebar}>

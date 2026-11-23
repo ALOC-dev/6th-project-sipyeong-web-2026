@@ -1,0 +1,4 @@
+// The versioned migration SQL defines the schema used by the pg stores.
+datasource db {
+  provider = "postgresql"
+}
