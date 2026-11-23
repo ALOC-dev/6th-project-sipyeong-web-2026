@@ -16,7 +16,11 @@ test('grades persist validity and aggregate all matching records for the signed-
   for (const { name } of migrationDirs.sort((a, b) => a.name.localeCompare(b.name))) {
     await database.exec(await readFile(migrations + '/' + name + '/migration.sql', 'utf8'));
   }
-  await database.exec("INSERT INTO semesters (year, term_code) VALUES (2024, '10'), (2024, '20'), (2025, '10')");
+  const { rows: semesters } = await database.query(
+    "SELECT semester_id::text, year, term_code FROM semesters WHERE year IN (2024, 2025)",
+  );
+  const semester = (year, termCode) => semesters.find(row => row.year === year && row.term_code === termCode).semester_id;
+  const spring = 'semesters/' + semester(2024, '10');
 
   const app = await NestFactory.create(AppModule, { logger: false });
   t.after(async () => {
@@ -70,7 +74,7 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal((await get('summary', null)).status, 401);
   assert.equal((await get('summary?category=invented')).status, 400);
   assert.equal((await get('semesters/9999')).status, 404);
-  const empty = (await (await get('semesters/3')).json()).data;
+  const empty = (await (await get('semesters/' + semester(2025, '10'))).json()).data;
   assert.deepEqual(empty.items, []);
   assert.equal(empty.summary.earnedCredits, 0);
   assert.equal(empty.summary.gpa, null);
@@ -87,8 +91,8 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(major.byCategory.length, 2);
 
   const latest = (await (await get('semesters')).json()).data.items;
-  assert.deepEqual(latest.map(item => item.semester.semesterId), ['2', '1']);
-  const response = await get('semesters/1?limit=1');
+  assert.deepEqual(latest.map(item => item.semester.semesterId), [semester(2024, '20'), semester(2024, '10')]);
+  const response = await get(spring + '?limit=1');
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   const first = await response.json();
   assert.equal(first.data.items[0].courseCode, 'A-MAJOR');
@@ -96,14 +100,14 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(first.data.summary.earnedCredits, 4);
   assert.equal(first.data.summary.gpa, 2.7);
   const cursor = first.meta.nextCursor;
-  const next = (await (await get('semesters/1?limit=1&cursor=' + cursor)).json()).data;
+  const next = (await (await get(spring + '?limit=1&cursor=' + cursor)).json()).data;
   assert.equal(next.items[0].status, 'FAILED');
   assert.equal(next.summary.earnedCredits, first.data.summary.earnedCredits);
-  assert.equal((await get('semesters/1?cursor=' + cursor, otherToken)).status, 409);
-  assert.equal((await get('semesters/1?category=MAJOR&cursor=' + cursor)).status, 409);
-  const invalid = (await (await get('semesters/1')).json()).data.items.find(item => item.courseCode === 'E-INVALID');
+  assert.equal((await get(spring + '?cursor=' + cursor, otherToken)).status, 409);
+  assert.equal((await get(spring + '?category=MAJOR&cursor=' + cursor)).status, 409);
+  const invalid = (await (await get(spring)).json()).data.items.find(item => item.courseCode === 'E-INVALID');
   assert.equal(invalid.gradeValid, false);
-  const other = (await (await get('semesters/1', otherToken)).json()).data;
+  const other = (await (await get(spring, otherToken)).json()).data;
   assert.deepEqual(other.items.map(item => item.courseCode), ['PRIVATE']);
   assert.equal(other.summary.earnedCredits, 3);
   assert.equal(other.summary.gpa, 1);
@@ -114,9 +118,19 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(incomplete.gpa, null);
   assert.equal(incomplete.enrolledCredits, 2);
   assert.ok(incomplete.warnings.some(warning => warning.code === 'GRADE_VALIDITY_UNKNOWN'));
-  assert.equal((await get('semesters/1?cursor=' + cursor)).status, 409);
+  assert.equal((await get(spring + '?cursor=' + cursor)).status, 409);
   await academics.save(userId, [transcript([general])]);
   const restored = (await (await get('summary')).json()).data;
   assert.equal(restored.earnedCredits, 5);
   assert.equal(restored.gpa, 2.75);
+
+  await academics.save(userId, [transcript([
+    row('SEASON-S', '교양선택', 1, 'A0', 4, true, 'SUMMER'),
+    row('SEASON-W', '교양선택', 1, 'A0', 4, true, 'WINTER'),
+  ])]);
+  const withSeasons = (await (await get('semesters')).json()).data.items;
+  assert.deepEqual(withSeasons.map(item => item.semester.name), [
+    '2024학년도 겨울계절수업', '2024학년도 2학기',
+    '2024학년도 여름계절수업', '2024학년도 1학기',
+  ]);
 });

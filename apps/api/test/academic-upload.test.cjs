@@ -4,7 +4,25 @@ const { AcademicsController } = require('../dist/academics/academics.controller'
 const { AcademicsService } = require('../dist/academics/academics.service');
 const transcript = require('../dist/academics/parsers/transcript.parser');
 const enrollment = require('../dist/academics/parsers/enrollment-confirmation.parser');
+const extractor = require('../dist/academics/parsers/document-extractor');
+const { DocumentExtractorUnavailable } = extractor;
 const { currentSubmissionTerm } = require('../dist/common/academic-term');
+
+test('transcript accepts seasonal classes and normalizes regular term labels', async (t) => {
+  const header = ['NO.', '학년도', '학기', '교과번호', '교과목명', '교과구분', '학점', '등급',
+    '평점', '성적유효여부', '재수강여부', '재수강교과목'];
+  const formats = [[2025, '여름계절수업'], [2025, '겨울계절수업'], ['2025학년도', ' 제1 학기 '], [2025, 2]];
+  t.mock.method(extractor, 'extractTables', async () => [{
+    name: 'transcript',
+    rows: [header, ...formats.map(([year, label], index) => [
+      index + 1, year, label, 'TEST', '수업', '교양', 3, 'A0', 4, 'Y', 'N', null,
+    ])],
+  }]);
+  const records = await transcript.parseTranscript(Buffer.from('fixture'));
+  assert.deepEqual(records.map(({ year, termCode }) => [year, termCode]), [
+    [2025, 'SUMMER'], [2025, 'WINTER'], [2025, '10'], [2025, '20'],
+  ]);
+});
 
 test('submission term switches at February and August midnight in Seoul', () => {
   for (const [instant, expected] of [
@@ -57,7 +75,10 @@ test('service parses only supplied documents and saves a combined upload atomica
   await assert.rejects(service.submit('user'));
 
   excelParser.mock.mockImplementation(async () => { throw new Error('invalid'); });
-  await assert.rejects(service.submit('user', file, file));
+  await assert.rejects(service.submit('user', file, file), error =>
+    error.getStatus() === 400 && error.message.includes('성적표 XLSX'));
+  pdfParser.mock.mockImplementation(async () => { throw new DocumentExtractorUnavailable('missing dependency'); });
+  await assert.rejects(service.submit('user', undefined, file), error => error.getStatus() === 503);
   assert.equal(batches.length, 3);
 });
 

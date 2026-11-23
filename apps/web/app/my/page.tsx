@@ -5,31 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AcademicNav, Icon } from "../academic-nav";
 import { loadAccount } from "../academic-account";
-import { change, errorMessage, requiresLogin, uploadFiles, validateFile, type FileKind } from "../api-client";
+import { TimetableTermSelect, uploadInfo } from "../academic-upload";
+import { change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
 import { useApi } from "../use-api";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
 
 type SelectedFiles = Record<FileKind, File | null>;
-
-// 파일 종류별 문구·허용 확장자·다운로드 안내를 한곳에서 관리한다.
-// 팝업은 선택된 종류의 설정만 읽으므로 Excel과 PDF가 함께 표시되지 않는다.
-const uploadInfo = {
-  grades: {
-    title: "성적 Excel",
-    dialogTitle: "성적 파일 업데이트",
-    description: "전체성적조회에서 내려받은 성적 Excel 파일을 선택해주세요.",
-    extension: ".xlsx",
-    guide: ["대학행정 접속", "수업/성적 → 성적표조회", "전체성적조회 선택", "Excel 다운로드"],
-  },
-  timetable: {
-    title: "수강신청확인서 PDF",
-    dialogTitle: "수강신청확인서 PDF 등록",
-    description: "이번 학기 수강신청확인서 PDF 파일을 선택해주세요.",
-    extension: ".pdf",
-    guide: ["대학행정 접속", "수강 → 수강신청확인서", "이번 학기 수강 내역 확인", "PDF 다운로드"],
-  },
-};
 
 // 파일 선택 화면은 하나만 만들고 kind로 Excel/PDF 검사 기준을 바꾼다.
 // file은 부모가 보관하고, onSelect로 선택·취소 결과를 부모에게 전달한다.
@@ -133,6 +115,7 @@ export default function MyPage() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadResult, setUploadResult] = useState("");
+  const [timetableTerm, setTimetableTerm] = useState("");
 
   // 중복 요청을 막고, 실패했을 때 현재 화면에서 다시 시도할 수 있도록 관리한다.
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -202,13 +185,14 @@ export default function MyPage() {
     setUploadError("");
     setUploadResult("");
     try {
-      const { data } = await uploadFiles({ [activeUpload]: file });
+      const { data } = await uploadFiles({ [activeUpload]: file }, timetableTerm);
       updateSelectedFile(activeUpload, null);
+      if (activeUpload === "timetable") setTimetableTerm("");
       setUploadResult(`${data.parsed}과목을 읽고 ${data.saved}건을 저장했습니다.`);
       uploadDialogRef.current?.close();
     } catch (error) {
       if (requiresLogin(error)) router.replace("/login?reason=session");
-      else setUploadError(errorMessage(error));
+      else setUploadError(uploadErrorMessage(error));
     } finally {
       uploadLock.current = false;
       setUploadBusy(false);
@@ -245,7 +229,9 @@ export default function MyPage() {
               ))}
             </>}
           </div>
-          {!me.profileCompleted && <Link href="/start" className={styles.changeButton}>학적 정보 입력</Link>}
+          <Link href="/start?edit=1" className={styles.changeButton}>
+            {me.profileCompleted ? "학적 정보 수정" : "학적 정보 입력"}
+          </Link>
         </div>
       </header>
 
@@ -355,6 +341,9 @@ export default function MyPage() {
             />
           )}
         </div>
+        {activeUpload === "timetable" && files.timetable && (
+          <TimetableTermSelect value={timetableTerm} onChange={setTimetableTerm} disabled={uploadBusy} />
+        )}
         {uploadError && <p className={styles.error} role="alert">{uploadError}</p>}
         <div className={styles.dialogFooter}>
           <button type="button" className={styles.primaryButton} disabled={uploadBusy || !activeUpload || !files[activeUpload]}

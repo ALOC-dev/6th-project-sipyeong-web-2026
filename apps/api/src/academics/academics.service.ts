@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { AcademicsStore } from './academics.store';
 import { parseTranscript } from './parsers/transcript.parser';
 import { parseEnrollmentConfirmation } from './parsers/enrollment-confirmation.parser';
+import { DocumentExtractorUnavailable } from './parsers/document-extractor';
 import type { ParsedCourseRecord } from './parsers/parsed-course-record';
 import type { AcademicTerm } from '../common/academic-term';
 import { currentSubmissionTerm } from '../common/academic-term';
@@ -19,8 +20,8 @@ export class AcademicsService {
   async submit(userId: string, grades?: AcademicUpload, timetable?: AcademicUpload, term?: AcademicTerm) {
     if (!grades && !timetable) throw new BadRequestException('업로드할 파일이 없습니다.');
     const [transcript, enrollment] = await Promise.all([
-      grades ? this.parse(() => parseTranscript(grades.buffer)) : Promise.resolve([]),
-      timetable ? this.parse(() => parseEnrollmentConfirmation(timetable.buffer, term ?? currentSubmissionTerm())) : Promise.resolve([]),
+      grades ? this.parse('성적표 XLSX', () => parseTranscript(grades.buffer)) : Promise.resolve([]),
+      timetable ? this.parse('수강신청확인서 PDF', () => parseEnrollmentConfirmation(timetable.buffer, term ?? currentSubmissionTerm())) : Promise.resolve([]),
     ]);
     const documents = [];
     if (timetable) documents.push(this.document(timetable, 'enrollment_confirmation', enrollment));
@@ -28,7 +29,7 @@ export class AcademicsService {
     return this.store.save(userId, documents);
   }
 
-  private async parse(parser: () => Promise<ParsedCourseRecord[]>) {
+  private async parse(document: string, parser: () => Promise<ParsedCourseRecord[]>) {
     try {
       const records = await parser();
       const keys = new Set<string>();
@@ -43,7 +44,11 @@ export class AcademicsService {
       }
       return records;
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : '파일을 파싱하지 못했습니다.');
+      if (error instanceof DocumentExtractorUnavailable) {
+        throw new ServiceUnavailableException(error.message, { cause: error });
+      }
+      const message = error instanceof Error ? error.message : '파일을 파싱하지 못했습니다.';
+      throw new BadRequestException({ code: 'ACADEMIC_DOCUMENT_INVALID', message: `${document} · ${message}` });
     }
   }
 

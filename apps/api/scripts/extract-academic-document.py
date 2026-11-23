@@ -44,5 +44,7 @@ if __name__ == "__main__":
         extract = {"xlsx": spreadsheet, "pdf": pdf}[sys.argv[1]]
         result = extract(io.BytesIO(sys.stdin.buffer.read()))
         sys.stdout.buffer.write(json.dumps(result, ensure_ascii=False, default=str).encode("utf-8"))
+    except ImportError:
+        sys.exit(3)
     except Exception:
-        sys.exit("Document extraction failed. Check the file and Python dependencies.")
+        sys.exit(2)

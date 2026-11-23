@@ -49,4 +49,13 @@ const response = await fetch('/api/academics/imports', {
 
 브라우저가 multipart 경계를 생성하므로 `Content-Type` 헤더를 직접 설정하지 않는다. 각 파일은 최대 10MB다. 성공 시 201과 `data: { batchId, parsed, saved }`가 반환된다. `parsed`는 두 파일에서 읽은 행 수이고 `saved`는 INSERT 또는 UPDATE된 행 수다. 이미 완료된 성적에 대해 PDF 갱신을 건너뛰면 수가 다를 수 있다. 만료 세션은 401, CSRF 실패는 403, 입력·파싱 오류는 400, DB에 없는 학기는 422다.
 
-API 실행 환경에 `python -m pip install -r apps/api/scripts/requirements-academic-parsers.txt`로 추출 의존성을 설치한다. 필요하면 `ACADEMIC_PYTHON`에 Python 실행 경로를 지정한다. [DB 마이그레이션 안내](../apps/api/prisma/README.md)에 따라 스키마를 적용하고 해당 학기 행을 준비한다.
+로컬 개발에서는 저장소 루트에서 아래 명령으로 API 전용 Python 환경과 추출 의존성을 준비한다.
+
+```powershell
+python -m venv apps/api/.venv
+& apps/api/.venv/Scripts/python.exe -m pip install -r apps/api/scripts/requirements-academic-parsers.txt
+```
+
+macOS·Linux에서는 두 번째 명령의 Python 경로로 `apps/api/.venv/bin/python`을 사용한다. API는 `ACADEMIC_PYTHON`이 있으면 해당 경로를, 없으면 API 폴더의 가상환경을 사용한다. 둘 다 없으면 PATH의 `python`을 사용한다. 배포 환경에도 같은 의존성을 설치한다. 추출 환경이 준비되지 않은 경우 503으로 응답한다.
+
+[DB 마이그레이션 안내](../apps/api/prisma/README.md)에 따라 스키마를 적용하면 2020~2026학년도 정규학기와 계절수업이 기본 등록된다. 성적표의 여름·겨울 계절수업은 해당 학년도의 별도 학기로 저장한다. 다른 학년도는 학교 기준 데이터를 적재해야 한다.

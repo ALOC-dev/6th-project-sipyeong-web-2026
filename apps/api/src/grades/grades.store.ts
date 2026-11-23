@@ -31,7 +31,9 @@ export class GradesStore implements OnModuleDestroy {
                   'gradePoint', r.grade_point, 'gradeValid', r.grade_valid, 'status', r.status,
                   'documentType', i.document_type,
                   'semester', json_build_object('semesterId', s.semester_id::text, 'year', s.year, 'termCode', s.term_code)
-                ) ORDER BY s.year DESC, s.term_code DESC, r.course_name_snapshot COLLATE "C", r.record_id)
+                ) ORDER BY s.year DESC,
+                  CASE s.term_code WHEN 'SUMMER' THEN '15' WHEN 'WINTER' THEN '25' ELSE s.term_code END DESC,
+                  s.term_code DESC, r.course_name_snapshot COLLATE "C", r.record_id)
                 FROM student_course_records r
                 JOIN semesters s ON s.semester_id = r.semester_id
                 JOIN academic_imports i ON i.import_id = r.source_import_id AND i.user_id = r.user_id

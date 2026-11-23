@@ -26,7 +26,7 @@ npm run dev -w @sipyeong/web -- -H 127.0.0.1 -p 3001
 
 브라우저에서 `http://localhost:3001/api/health`의 200 응답을 확인하고 `http://localhost:3001/`에서 카카오 로그인을 시작합니다. 신규 사용자는 학적 정보를 저장한 뒤 성적표 XLSX를 올립니다. 등록된 사용자는 홈에서 학점 기록을 열거나 내 정보에서 파일을 다시 올릴 수 있습니다.
 
-업로드를 검증하려면 API가 사용하는 Python으로 `python -m pip install -r apps/api/scripts/requirements-academic-parsers.txt`를 실행합니다. 개발 DB에 학생의 학과와 파일에 기록된 학기가 등록돼 있어야 합니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 세부 사항은 [카카오 인증](../../docs/kakao-auth.md), [업로드 계약](../../docs/academic-upload.md), [DB 마이그레이션](../api/prisma/README.md)을 참고합니다.
+업로드 검증 전 [업로드 안내](../../docs/academic-upload.md)의 Python 환경 설정과 [DB 마이그레이션](../api/prisma/README.md)을 적용합니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 로그인 설정은 [카카오 인증](../../docs/kakao-auth.md)을 참고합니다.
 
 ## 검증
 

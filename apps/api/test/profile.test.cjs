@@ -111,8 +111,13 @@ test('profile onboarding persists for the authenticated account and validates up
   await database.query('INSERT INTO curriculum_rules VALUES (34, 2023, 2024)');
   const outdated = await (await me()).json();
   assert.equal(outdated.data.profileCompleted, false);
-  assert.equal(outdated.meta.warnings[0].code, 'CURRICULUM_POLICY_UNKNOWN');
+  assert.equal(outdated.meta.warnings[0].code, 'CURRICULUM_SELECTION_REQUIRED');
   await database.query('INSERT INTO curriculum_rules VALUES (34, 2023, 2023)');
+  const departmentOptions = await fetch(base + '/departments', { headers: { Cookie: cookie } });
+  assert.deepEqual((await departmentOptions.json()).data.curriculumRules, [
+    { departmentId: '34', admissionYear: 2023, curriculumYear: 2023 },
+    { departmentId: '34', admissionYear: 2023, curriculumYear: 2024 },
+  ]);
   assert.equal((await patch({ expectedRevision: 2, curriculumYear: 2025 })).status, 422);
   assert.equal((await patch({ expectedRevision: 2, volunteerHours: null, languageScores: [] })).status, 200);
   const cleared = await (await me()).json();

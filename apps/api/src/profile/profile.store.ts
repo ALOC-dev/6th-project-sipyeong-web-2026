@@ -64,10 +64,18 @@ export class ProfileStore implements OnModuleDestroy {
   }
 
   async departments(search: string, limit: number) {
-    const result = await this.database.query<{ departmentId: string; name: string }>(
-      `SELECT department_id::text AS "departmentId", department_name AS name FROM departments
-       WHERE department_id = $3 AND strpos(lower(department_name), lower($1)) > 0
-       ORDER BY department_name, department_id LIMIT $2`,
+    const result = await this.database.query<{
+      departmentId: string; name: string; curriculumRules: { admissionYear: number; curriculumYear: number }[];
+    }>(
+      `SELECT d.department_id::text AS "departmentId", d.department_name AS name,
+              COALESCE((
+                SELECT json_agg(json_build_object('admissionYear', r.admission_year, 'curriculumYear', r.curriculum_year)
+                                ORDER BY r.admission_year, r.curriculum_year)
+                FROM curriculum_rules r WHERE r.department_id = d.department_id
+              ), '[]'::json) AS "curriculumRules"
+       FROM departments d
+       WHERE d.department_id = $3 AND strpos(lower(d.department_name), lower($1)) > 0
+       ORDER BY d.department_name, d.department_id LIMIT $2`,
       [search, limit, supportedDepartmentId],
     );
     return result.rows;
@@ -96,7 +104,7 @@ export class ProfileStore implements OnModuleDestroy {
       );
       if (rules.length && !rules.some(rule => rule.curriculum_year === curriculumYear)) {
         throw new UnprocessableEntityException({
-          code: 'VALIDATION_ERROR', message: '적용 교육과정 연도를 확인해 주세요.',
+          code: 'VALIDATION_ERROR', message: '선택한 학과와 입학연도에 적용되는 교육과정 연도를 선택해 주세요.',
         });
       }
       const studentNumber = patch.studentNumber === undefined ? profile?.studentNumber ?? null : patch.studentNumber;

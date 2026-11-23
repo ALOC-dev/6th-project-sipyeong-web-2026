@@ -4,7 +4,7 @@
 
 | 요청 | 결과 |
 |---|---|
-| GET /api/departments?q=컴퓨터&limit=20 | data.items는 departmentId와 name 목록입니다. 현재 컴퓨터과학부만 지원합니다. |
+| GET /api/departments?q=컴퓨터&limit=20 | data.items는 departmentId와 name 목록입니다. data.curriculumRules는 조회된 학과의 departmentId, admissionYear, curriculumYear 조합을 반환합니다. 현재 컴퓨터과학부만 지원합니다. |
 | GET /api/users/me | data에 userId, displayName, profile, profileCompleted, studentDataVersion을 반환합니다. 학적 정보가 없으면 profile은 null입니다. |
 | PATCH /api/users/me/profile | data에 저장된 profile과 studentDataVersion을 반환합니다. 웹 Origin과 세션의 X-CSRF-Token을 보냅니다. |
 
@@ -28,6 +28,6 @@
 
 languageScores를 생략하면 기존 값이 유지됩니다. 배열을 보내면 전체 교체하고 빈 배열로 삭제합니다. 프로필·어학성적 저장과 버전 증가는 한 트랜잭션으로 처리합니다.
 
-로그인 후 GET /api/users/me의 profileCompleted가 false이면 학적 입력으로, true이면 홈으로 이동합니다. 성적·시간표 업로드, 봉사시간·어학성적은 이 필드의 조건에 포함되지 않습니다. 적용 교육과정 규정이 아직 없으면 저장을 허용하고 meta.warnings에 CURRICULUM_POLICY_UNKNOWN을 반환합니다. 이 경고는 학교 규정의 확인 상태를 나타냅니다.
+로그인 후 GET /api/users/me의 profileCompleted가 false이면 학적 입력으로, true이면 홈으로 이동합니다. 성적·시간표 업로드, 봉사시간·어학성적은 이 필드의 조건에 포함되지 않습니다. 적용 교육과정 규정이 아직 없으면 저장을 허용하고 meta.warnings에 CURRICULUM_POLICY_UNKNOWN을 반환합니다. 저장된 연도가 등록된 기준과 다르면 CURRICULUM_SELECTION_REQUIRED를 반환합니다.
 
 401은 로그인 필요, 403 CSRF_INVALID는 요청 검증 실패, 409 REVISION_CONFLICT는 재조회 후 재시도 필요, 409 STUDENT_NUMBER_IN_USE는 학번 중복, 422 VALIDATION_ERROR는 입력 확인이 필요함을 뜻합니다.

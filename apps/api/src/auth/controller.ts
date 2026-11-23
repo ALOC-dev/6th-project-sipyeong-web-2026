@@ -57,15 +57,22 @@ function noCache(response: Response) {
   response.set('Cache-Control', 'private, no-store');
 }
 
+function browserNavigation(request: Request) {
+  return request.get('Accept')?.includes('text/html') ?? false;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly store: AuthStore, private readonly kakao: KakaoClient) {}
 
   @Get('login/kakao')
-  async begin(@Query('returnTo') returnTo: unknown, @Res() response: Response) {
+  async begin(@Query('returnTo') returnTo: unknown, @Req() request: Request, @Res() response: Response) {
     noCache(response);
     const settings = config();
-    if (!settings) return failure(response, 503, 'SERVICE_UNAVAILABLE', '인증 환경을 확인해 주세요.');
+    if (!settings) {
+      if (browserNavigation(request)) return response.redirect(302, '/login?reason=unavailable');
+      return failure(response, 503, 'SERVICE_UNAVAILABLE', '인증 환경을 확인해 주세요.');
+    }
     const target = safeReturnTo(returnTo, settings.origin);
     if (!target) return failure(response, 400, 'INVALID_QUERY', '이동 경로를 확인해 주세요.');
 
@@ -80,16 +87,22 @@ export class AuthController {
   async callback(@Req() request: Request, @Res() response: Response) {
     noCache(response);
     const settings = config();
-    if (!settings) return failure(response, 503, 'SERVICE_UNAVAILABLE', '인증 환경을 확인해 주세요.');
+    if (!settings) {
+      if (browserNavigation(request)) return response.redirect(302, '/login?reason=unavailable');
+      return failure(response, 503, 'SERVICE_UNAVAILABLE', '인증 환경을 확인해 주세요.');
+    }
     const { state, code, error } = request.query;
     const verifier = readCookie(request, flowCookie);
     const target = typeof state === 'string' && /^[A-Za-z0-9_-]{43}$/.test(state) && verifier
       ? await this.store.consumeAttempt(state, verifier)
       : undefined;
-    if (!target) return failure(response, 400, 'OAUTH_STATE_INVALID', '인증 요청이 만료되었거나 유효하지 않습니다.');
+    const loginError = (reason: string) => response.redirect(302, `${settings.origin}/login?reason=${reason}`);
+    if (!target) {
+      if (browserNavigation(request)) return loginError('expired');
+      return failure(response, 400, 'OAUTH_STATE_INVALID', '인증 요청이 만료되었거나 유효하지 않습니다.');
+    }
 
     response.clearCookie(flowCookie, { ...settings.cookie, path: flowPath });
-    const loginError = (reason: string) => response.redirect(302, `${settings.origin}/login?reason=${reason}`);
     if (error === 'access_denied') return loginError('cancelled');
     if (error !== undefined) return loginError('provider_error');
     if (typeof code !== 'string' || !code || code.length > 4096) {

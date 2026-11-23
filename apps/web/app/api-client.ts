@@ -65,11 +65,25 @@ export function validateFile(kind: FileKind, file: File) {
   return "";
 }
 
-export function uploadFiles(files: Partial<Record<FileKind, File | null>>) {
+export function uploadFiles(files: Partial<Record<FileKind, File | null>>, timetableTerm = "") {
   const body = new FormData();
   if (files.grades) body.append("grades", files.grades);
-  if (files.timetable) body.append("timetable", files.timetable);
+  if (files.timetable) {
+    body.append("timetable", files.timetable);
+    if (timetableTerm) {
+      const [year, termCode] = timetableTerm.split("/");
+      body.append("year", year);
+      body.append("termCode", termCode);
+    }
+  }
   return change<{ batchId: string; parsed: number; saved: number }>("academics/imports", "POST", body);
+}
+
+export function uploadErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.status === 503) {
+    return "문서 추출 서비스를 사용할 수 없습니다. 잠시 뒤 다시 시도해 주세요.";
+  }
+  return errorMessage(error);
 }
 
 export interface LanguageScore {
