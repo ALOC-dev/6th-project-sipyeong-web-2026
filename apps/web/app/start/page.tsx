@@ -148,7 +148,8 @@ function Onboarding({ initialProfile, initialCompleted, departments, curriculumR
     setFileErrors((state) => ({ ...state, [kind]: invalid }));
     setError("");
     setResult(undefined);
-    if (!invalid) setFiles((state) => ({ ...state, [kind]: file }));
+    setFiles((state) => ({ ...state, [kind]: invalid ? null : file }));
+    if (kind === "timetable") setTimetableTerm("");
   }
 
   function submitFiles(event: FormEvent<HTMLFormElement>) {
@@ -208,6 +209,7 @@ function Onboarding({ initialProfile, initialCompleted, departments, curriculumR
                       const { files: dropped } = event.dataTransfer;
                       if (dropped.length === 1) selectFile(kind, dropped[0]);
                       else if (dropped.length > 1) {
+                        selectFile(kind, null);
                         setFileErrors(state => ({ ...state, [kind]: "파일을 한 개씩 선택해 주세요." }));
                       }
                     }}>

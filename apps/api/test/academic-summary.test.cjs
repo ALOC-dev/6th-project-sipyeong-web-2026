@@ -12,8 +12,10 @@ test('imports preserve validity and summaries across upload and reupload', async
   }
   const store = new AcademicsStore();
   await store.onModuleDestroy();
-  store.database = { connect: async () => ({ query: database.query.bind(database), release() {} }) };
+  const query = database.query.bind(database);
+  store.database = { query, connect: async () => ({ query, release() {} }) };
   const user = (await database.query("INSERT INTO app_users(kakao_id) VALUES ('summary-test') RETURNING id")).rows[0].id;
+  const secondUser = (await database.query("INSERT INTO app_users(kakao_id) VALUES ('other-summary-test') RETURNING id")).rows[0].id;
   await database.exec("INSERT INTO semesters(year,term_code) VALUES (2026,'20')");
   const row = {
     year: 2026, termCode: '20', courseNumber: '01964', courseName: '과목',
@@ -39,6 +41,19 @@ test('imports preserve validity and summaries across upload and reupload', async
   assert.equal(summary.courses[0].retake, true);
   const stored = (await database.query('SELECT validation_summary FROM academic_imports WHERE import_id = $1', [result.imports[0].importId])).rows[0].validation_summary;
   assert.deepEqual(stored, summary);
-  const changed = await store.save(user, [doc('transcript', { ...row, gradeValid: true })]);
+  const legacyName = Buffer.from('과목별 성적 목록.xlsx', 'utf8').toString('latin1');
+  const changed = await store.save(user, [{ ...doc('transcript', { ...row, gradeValid: true }), name: legacyName }]);
   assert.equal(changed.imports[0].validationSummary.courses[0].effectiveGradeValid, true);
+  await database.query(
+    "UPDATE academic_imports SET status = 'failed', committed_at = NULL WHERE import_id = $1",
+    [first.imports[0].importId],
+  );
+  await database.query("UPDATE academic_imports SET committed_at = '2026-11-01T00:00:00Z' WHERE status = 'committed'");
+  await store.save(secondUser, [{ ...doc('transcript', row), name: 'another-account.xlsx' }]);
+  const latest = await store.latestImports(user);
+  assert.equal(latest.grades.name, '과목별 성적 목록.xlsx');
+  assert.equal(latest.timetable.name, 'test');
+  assert.equal(new Date(latest.grades.appliedAt).toISOString(), '2026-11-01T00:00:00.000Z');
+  assert.deepEqual(Object.keys(await store.latestImports(secondUser)), ['grades']);
+  assert.equal((await store.latestImports(secondUser)).grades.name, 'another-account.xlsx');
 });

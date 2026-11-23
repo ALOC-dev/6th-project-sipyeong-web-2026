@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Header, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
 import { CsrfGuard } from '../auth/csrf.guard';
@@ -11,11 +11,18 @@ import type { AcademicUpload } from './academics.service';
 const maxFileSize = 10 * 1024 * 1024;
 
 @Controller('academics')
-@UseGuards(SessionGuard, CsrfGuard)
+@UseGuards(SessionGuard)
 export class AcademicsController {
   constructor(private readonly service: AcademicsService) {}
 
+  @Get('imports/latest')
+  @Header('Cache-Control', 'private, no-store')
+  async latest(@Req() request: SessionRequest) {
+    return { data: await this.service.latestImports(request.academicSession!.userId), meta: { requestId: randomUUID() } };
+  }
+
   @Post('imports')
+  @UseGuards(CsrfGuard)
   @Header('Cache-Control', 'private, no-store')
   @UseInterceptors(FileFieldsInterceptor([
     { name: 'grades', maxCount: 1 },

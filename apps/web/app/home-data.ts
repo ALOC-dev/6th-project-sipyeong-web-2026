@@ -11,6 +11,7 @@ export interface GraduationRequirement {
   code: string;
   title: string;
   type: string;
+  categoryCode?: string | null;
   status: keyof typeof requirementStatus;
   pendingReason?: "manual_review" | "language_score_missing" | null;
   unit: keyof typeof requirementUnits | null;
@@ -33,7 +34,17 @@ export interface HomeOverview {
   currentTerm: { year: number; termCode: "10" | "20" };
   gpa: { overall: number | null; major: number | null; basis: { gpaCredits: number; gradePoints: number } | null };
   calendar: { academicTerm: HomeOverview["currentTerm"]; opensOn?: string; classesEndOn?: string; sourceUrl?: string };
-  credits: { earned: number | null; recognized: number | null };
+  credits: {
+    earned: number | null;
+    recognized: number | null;
+    recognition: {
+      liberalLimit: number;
+      liberalEarned: number | null;
+      liberalExcess: number | null;
+      projectedLiberal: number | null;
+      sourceUrl: string;
+    } | null;
+  };
   currentSemester: { courseCount: number; credits: number };
   semesterGpas: { year: number; termCode: string; gpa: number | null }[];
   graduation: Graduation;
