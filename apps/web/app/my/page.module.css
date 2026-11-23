@@ -28,20 +28,28 @@
 .profileLine > div { min-width: 0; }
 .profileLine h2 { margin: 0; font-size: 18px; font-weight: 700; }
 .profileLine p { margin: 5px 0 0; color: var(--hero-muted); font-size: 13px; line-height: 1.7; }
+.profileDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 16px 0 0; padding-top: 12px; border-top: 1px solid rgb(255 255 255 / 28%); }
+.profileDetails dt { color: var(--hero-muted); font-size: 12px; }
+.profileDetails dd { margin: 3px 0 0; font-size: 14px; overflow-wrap: anywhere; }
 .page .changeButton { flex-shrink: 0; padding: 9px 12px; border: 0; border-radius: 999px; background: rgb(255 255 255 / 18%); color: white; font-size: 13px; font-weight: 600; }
 
 .content { flex: 1; display: grid; align-content: start; gap: 14px; padding: 18px 16px 28px; }
+.warnings { grid-column: 1 / -1; padding: 8px 12px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 13px; }
+.warnings p { margin: 0; }
+.sectionTitle { margin: 0; font-size: 18px; font-weight: 750; }
+.preferences { display: grid; gap: 12px; min-width: 0; align-content: start; }
 .fileColumn { display: grid; gap: 12px; min-width: 0; align-content: start; }
 .fileCard { display: flex; align-items: center; gap: 14px; padding: 22px 18px; border-radius: 16px; background: var(--surface); }
 .fileIcon { flex-shrink: 0; color: var(--accent); }
 .fileIcon svg { display: block; width: 24px; height: 24px; }
 .fileText { flex: 1; min-width: 0; }
-.fileText h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 700; }
+.fileText h3 { margin: 0; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .fileText p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.fileDate { display: block; }
 .page .updateButton { flex-shrink: 0; padding: 8px 12px; border: 0; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 13px; font-weight: 600; }
 
 .settings { min-width: 0; align-self: start; padding: 0 20px; border-radius: 16px; background: var(--surface); }
-.settingRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; min-height: 65px; padding: 15px 0; border: 0; background: transparent; color: var(--ink); text-align: left; }
+.settingRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; min-height: 65px; padding: 15px 0; border: 0; background: transparent; color: var(--ink); text-align: left; text-decoration: none; }
 .settingRow + .settingRow { border-top: 1px solid var(--line); }
 /* 카드 밖에 있던 로그아웃을 설정의 마지막 행으로 옮겼다. */
 .logoutArea {
@@ -93,6 +101,8 @@
 .guide summary { color: var(--accent); cursor: pointer; }
 .guide ol { margin: 10px 0 0; padding-left: 20px; color: var(--muted); line-height: 1.9; }
 .dropZone { margin-top: 14px; padding: 24px 12px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; }
+.dropZone.dragging { border-color: var(--accent); background: var(--soft); }
+.fileText strong, .selectedFile strong { overflow-wrap: anywhere; }
 .dropZone > svg { display: block; width: 28px; height: 28px; margin: 0 auto; color: var(--accent); }
 .dropZone p { margin: 12px 0 5px; font-size: 14px; font-weight: 600; }
 .muted { display: block; color: var(--muted); font-size: 12px; line-height: 1.7; }
@@ -110,16 +120,20 @@
   .page { width: 100%; max-width: 1120px; min-height: 100dvh; margin: 0 auto; padding-bottom: 24px; border-radius: 0; }
   .header { padding: 28px 30px; border-radius: 0; }
   .sun { right: 30px; }
-  .content { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; padding: 24px; }
+  .content { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; gap: 16px 24px; padding: 22px 24px; }
   .bottomNav { order: -1; top: 16px; bottom: auto; margin-bottom: 20px; padding: 15px; border: 1px solid var(--line); border-radius: 16px; }
   .bottomNav :is(button, a) { flex-direction: row; gap: 8px; font-size: 13px; }
   /* PC에서도 파일 팝업은 1열을 유지한다. 내 정보 본문의 2열 배치와는 별개다. */
   .uploadGrid { grid-template-columns: minmax(0, 1fr); }
 }
 
+@media (min-width: 768px) and (max-width: 899px), (min-width: 1000px) {
+  .profileDetails { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 @media (max-width: 359px) {
   .fileCard { gap: 10px; padding: 18px 14px; }
-  .fileText h2 { font-size: 14px; }
+  .fileText h3 { font-size: 14px; }
   .page .updateButton { padding: 8px 10px; font-size: 12px; }
 }
 

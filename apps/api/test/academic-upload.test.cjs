@@ -69,9 +69,11 @@ test('service parses only supplied documents and saves a combined upload atomica
   assert.deepEqual(pdfParser.mock.calls[0].arguments[1], currentSubmissionTerm());
   assert.deepEqual(batches[1].map(doc => doc.type), ['enrollment_confirmation']);
   assert.equal(excelParser.mock.callCount(), 1);
-  await service.submit('user', file, file, { year: 2025, termCode: '10' });
+  await service.submit('user', { ...file, originalname: Buffer.from('성적표.xlsx', 'utf8').toString('latin1') },
+    { ...file, originalname: 'café.pdf' }, { year: 2025, termCode: '10' });
   assert.deepEqual(pdfParser.mock.calls[1].arguments[1], { year: 2025, termCode: '10' });
   assert.deepEqual(batches[2].map(doc => doc.type), ['enrollment_confirmation', 'transcript']);
+  assert.deepEqual(batches[2].map(doc => doc.name), ['café.pdf', '성적표.xlsx']);
   await assert.rejects(service.submit('user'));
 
   excelParser.mock.mockImplementation(async () => { throw new Error('invalid'); });

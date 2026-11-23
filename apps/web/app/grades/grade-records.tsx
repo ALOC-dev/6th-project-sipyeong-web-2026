@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { displayNumber, type GradeRecord, type GradeTotals } from "../api-client";
 import { HelpButton } from "../help-button";
+import { AppIcon } from "../app-icon";
 import { useApi } from "../use-api";
 import { gradeCategories, loadSemesterRecords, type GradeData } from "./grade-data";
 import { HistoryChart } from "./history-chart";
@@ -46,6 +47,9 @@ export function GradeRecords({ data, target, onShowHelp }: {
   const [selectedId, setSelectedId] = useState("");
   const [mode, setMode] = useState<"gpa" | "credits">("gpa");
   const selected = data.semesters.find(item => item.semester.semesterId === selectedId);
+  const selectedIndex = selected ? data.semesters.indexOf(selected) : -1;
+  const older = data.semesters[selectedIndex + 1];
+  const newer = selectedIndex >= 0 ? data.semesters[selectedIndex - 1] : undefined;
   const totals = selected ?? data.summary;
   const term = data.summary.currentTerm;
   const currentCredits = data.currentSemester?.enrolledCredits ?? 0;
@@ -68,7 +72,7 @@ export function GradeRecords({ data, target, onShowHelp }: {
           </div>
         </div>
         <HistoryChart mode={mode} semesters={[...data.semesters].reverse()}
-          selectedIndex={selected ? data.semesters.length - 1 - data.semesters.indexOf(selected) : -1} />
+          selectedIndex={selectedIndex < 0 ? -1 : data.semesters.length - 1 - selectedIndex} />
       </section>
     </div>
     <section className={styles.card}>
@@ -83,6 +87,14 @@ export function GradeRecords({ data, target, onShowHelp }: {
             <option value="">전체 학기</option>
             {data.semesters.map(({ semester }) => <option key={semester.semesterId} value={semester.semesterId}>{semester.name}</option>)}
           </select>
+        </div>
+        <div className={styles.semesterNavigation} role="group" aria-label="학기 이동">
+          <button type="button" disabled={!older} onClick={() => setSelectedId(older.semester.semesterId)}>
+            <AppIcon name="chevron" />이전 학기
+          </button>
+          <button type="button" disabled={!newer} onClick={() => setSelectedId(newer!.semester.semesterId)}>
+            다음 학기<AppIcon name="chevron" />
+          </button>
         </div>
         <Totals totals={totals} />
         <dl className={styles.currentSummary} aria-label="교과구분별 학점">

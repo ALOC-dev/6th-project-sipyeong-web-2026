@@ -6,13 +6,19 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../academic-nav";
 import { loadAccount } from "../academic-account";
 import { TimetableTermSelect, uploadInfo } from "../academic-upload";
-import { change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
+import { api, change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
 import { useApi } from "../use-api";
 import { formatGraduationPeriod } from "../profile-model";
 import { useTheme } from "../theme-provider";
 import styles from "./page.module.css";
 
 type SelectedFiles = Record<FileKind, File | null>;
+type LatestImports = Partial<Record<FileKind, { name: string; appliedAt: string }>>;
+const importDate = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeZone: "Asia/Seoul" });
+
+async function loadLatestImports(signal: AbortSignal) {
+  return (await api<LatestImports>("academics/imports/latest", { signal })).data;
+}
 
 // 파일 선택 화면은 하나만 만들고 kind로 Excel/PDF 검사 기준을 바꾼다.
 // file은 부모가 보관하고, onSelect로 선택·취소 결과를 부모에게 전달한다.
@@ -30,6 +36,7 @@ function UploadPanel({
   // 커스텀 버튼을 눌렀을 때 숨겨진 기본 파일 선택 창을 열기 위한 참조다.
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
   const info = uploadInfo[kind];
 
   // 파일 선택 버튼과 끌어놓기가 같은 검사 함수를 사용한다.
@@ -64,21 +71,32 @@ function UploadPanel({
       />
 
       <div
-        className={styles.dropZone}
-        onDragOver={(event) => event.preventDefault()}
+        className={dragging ? `${styles.dropZone} ${styles.dragging}` : styles.dropZone}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = disabled ? "none" : "copy";
+          if (!disabled) setDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+          setDragging(false);
+        }}
         onDrop={(event) => {
           // 파일을 브라우저에서 직접 여는 기본 동작을 막는다.
           event.preventDefault();
+          setDragging(false);
           if (disabled) return;
           if (event.dataTransfer.files.length !== 1) {
             setError("파일을 한 개씩 선택해주세요.");
+            onSelect(null);
             return;
           }
           selectFile(event.dataTransfer.files[0]);
         }}
       >
         <Icon name="upload" />
-        <p>파일을 여기에 놓아주세요</p>
+        <p>{dragging ? "여기에 파일을 놓으세요" : "클릭하거나 파일을 끌어다 놓으세요"}</p>
         <span className={styles.muted}>{info.extension} · 최대 10MB</span>
         <button
           type="button"
@@ -111,6 +129,7 @@ function UploadPanel({
 export default function MyPage() {
   const router = useRouter();
   const account = useApi(loadAccount);
+  const imports = useApi(loadLatestImports);
   const uploadLock = useRef(false);
   const logoutLock = useRef(false);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -190,6 +209,7 @@ export default function MyPage() {
       updateSelectedFile(activeUpload, null);
       if (activeUpload === "timetable") setTimetableTerm("");
       setUploadResult(`${data.parsed}과목을 읽고 ${data.saved}건을 저장했습니다.`);
+      imports.reload();
       uploadDialogRef.current?.close();
     } catch (error) {
       if (requiresLogin(error)) router.replace("/login?reason=session");
@@ -223,91 +243,88 @@ export default function MyPage() {
         <div className={styles.profileLine}>
           <div>
             <h2>{department?.name ?? "학적 정보"}</h2>
-            {profile && <>
-              <p>{profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>
-              <p>{Math.ceil(profile.studySemester / 2)}학년 {(profile.studySemester - 1) % 2 + 1}학기{graduation && ` · ${formatGraduationPeriod(graduation)} 졸업 예정`}</p>
-              <p>봉사시간 {profile.volunteerHours === null ? "미등록" : `${profile.volunteerHours}시간`}</p>
-              {profile.languageScores.map((score, index) => (
-                <p key={index}>{score.examType} {[score.score, score.grade].filter((value) => value !== null).join(" · ")}</p>
-              ))}
-            </>}
+            {profile && <p>{profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>}
           </div>
           <Link href="/start?edit=1" className={styles.changeButton}>
             {me.profileCompleted ? "학적 정보 수정" : "학적 정보 입력"}
           </Link>
         </div>
+        {profile && <dl className={styles.profileDetails}>
+          <div><dt>현재 학년·학기</dt><dd>{Math.ceil(profile.studySemester / 2)}학년 {(profile.studySemester - 1) % 2 + 1}학기</dd></div>
+          <div><dt>졸업 예정</dt><dd>{graduation ? formatGraduationPeriod(graduation) : "미등록"}</dd></div>
+          <div><dt>봉사시간</dt><dd>{profile.volunteerHours === null ? "미등록" : `${profile.volunteerHours}시간`}</dd></div>
+          <div><dt>어학성적</dt><dd>{profile.languageScores.length ? profile.languageScores.map(score =>
+            [score.examType, score.score, score.grade].filter(value => value !== null).join(" ")).join(" · ") : "미등록"}</dd></div>
+        </dl>}
       </header>
 
       <div className={styles.content}>
-        {warnings.map((warning) => <p key={warning.code} role="status">{warning.message}</p>)}
-        <section id="academic-files" className={styles.fileColumn} aria-label="학업 자료">
-          <div className={styles.fileCard}>
-            <span className={styles.fileIcon}><Icon name="file" /></span>
-            <div className={styles.fileText}>
-              <h2>성적 Excel</h2>
-              <p>{files.grades ? "새 파일 선택됨 · 전송 대기" : "전체성적조회 XLSX"}</p>
-            </div>
-            {/* 성적 버튼은 grades를 전달해 성적 Excel 패널만 연다. */}
-            <button type="button" className={styles.updateButton} onClick={() => openUploadDialog("grades")}>
-              업데이트
-            </button>
-          </div>
-
-          <div className={styles.fileCard}>
-            <span className={styles.fileIcon}><Icon name="file" /></span>
-            <div className={styles.fileText}>
-              <h2 title={files.timetable?.name ?? "수강신청확인서 PDF"}>{files.timetable?.name ?? "수강신청확인서 PDF"}</h2>
-              <p>{files.timetable ? "새 파일 선택됨 · 전송 대기" : "이번 학기 수강신청확인서"}</p>
-            </div>
-            {/* PDF 버튼은 timetable을 전달해 수강신청확인서 패널만 연다. */}
-            <button type="button" className={styles.updateButton} onClick={() => openUploadDialog("timetable")}>
-              {files.timetable ? "변경" : "등록"}
-            </button>
-          </div>
+        {warnings.length > 0 && <div className={styles.warnings} role="status">
+          {warnings.map(warning => <p key={warning.code}>{warning.message}</p>)}
+        </div>}
+        <section id="academic-files" className={styles.fileColumn} aria-labelledby="my-files-title">
+          <h2 id="my-files-title" className={styles.sectionTitle}>학업 자료</h2>
+          {(["grades", "timetable"] as const).map(kind => {
+            const applied = imports.data?.[kind];
+            const pending = files[kind];
+            const action = pending ? "계속" : applied ? "업데이트" : imports.data ? "등록" : "파일 선택";
+            return <div className={styles.fileCard} key={kind}>
+              <span className={styles.fileIcon}><Icon name="file" /></span>
+              <div className={styles.fileText}>
+                <h3>{uploadInfo[kind].title}</h3>
+                {applied && <p><strong>{applied.name}</strong><span className={styles.fileDate}>{importDate.format(new Date(applied.appliedAt))} 반영</span></p>}
+                {!applied && imports.data && <p>반영된 파일이 없습니다.</p>}
+                {pending && <p><strong>{pending.name}</strong> · 업로드 대기</p>}
+              </div>
+              <button type="button" className={styles.updateButton} aria-label={`${uploadInfo[kind].title} ${action}`}
+                onClick={() => openUploadDialog(kind)}>{action}</button>
+            </div>;
+          })}
+          {!imports.data && (imports.error
+            ? <p role="alert">파일 반영 이력을 불러오지 못했습니다. <button type="button" onClick={imports.reload}>다시 시도</button></p>
+            : <p role="status">파일 반영 이력을 불러오는 중…</p>)}
           {uploadResult && <p role="status">{uploadResult} <Link href="/grades">성적 조회 ›</Link></p>}
         </section>
 
-        <section className={styles.settings} aria-label="내 정보 설정">
-          {/* 실제 디그리 화면과 기준 데이터 기능은 해당 기능 구현 후 연결 */}
-          <button type="button" className={styles.settingRow} disabled>
-            <strong>마이크로디그리</strong>
-            <span className={styles.settingValue}>준비 중</span>
-          </button>
-          <div className={styles.settingRow}>
-            <strong>기준 데이터</strong>
-            <span className={styles.settingValue}>{profile?.curriculumYear ?? "미등록"}</span>
-          </div>
-          <div className={styles.settingRow}>
-            <strong>화면 테마</strong>
-            <div className={styles.themeGroup} role="group" aria-label="화면 테마">
-              {/* 서비스 전체에서 라이트·다크 두 가지만 선택할 수 있다. */}
-              {([{ value: "light", label: "라이트" }, { value: "dark", label: "다크" }] as const).map((item) => (
-                <button key={item.value} type="button" aria-pressed={theme === item.value} onClick={() => setTheme(item.value)}>
-                  {item.label}
-                </button>
-              ))}
+        <section className={styles.preferences} aria-labelledby="my-settings-title">
+          <h2 id="my-settings-title" className={styles.sectionTitle}>설정</h2>
+          <div className={styles.settings}>
+            <Link href="/req#graduation-sources" className={styles.settingRow}>
+              <strong>기준 데이터</strong>
+              <span className={styles.settingValue}>{profile?.curriculumYear ? `${profile.curriculumYear}학년도` : "확인"}</span>
+            </Link>
+            <div className={styles.settingRow}>
+              <strong>화면 테마</strong>
+              <div className={styles.themeGroup} role="group" aria-label="화면 테마">
+                {/* 서비스 전체에서 라이트·다크 두 가지만 선택할 수 있다. */}
+                {([{ value: "light", label: "라이트" }, { value: "dark", label: "다크" }] as const).map((item) => (
+                  <button key={item.value} type="button" aria-pressed={theme === item.value} onClick={() => setTheme(item.value)}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className={styles.settingRow}>
-            <strong>저장 위치</strong>
-            <span className={styles.settingValue}>시평 서버</span>
-          </div>
-          <div className={styles.logoutArea}>
-            <button
-              type="button"
-              className={styles.logoutButton}
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              aria-busy={isLoggingOut}
-              aria-describedby={logoutError ? "logout-error" : undefined}
-            >
-              {isLoggingOut ? "로그아웃 중…" : "로그아웃"}
-            </button>
-            {logoutError && (
-              <p id="logout-error" className={styles.logoutError} role="alert">
-                {logoutError}
-              </p>
-            )}
+            <div className={styles.settingRow}>
+              <strong>저장 위치</strong>
+              <span className={styles.settingValue}>시평 서버</span>
+            </div>
+            <div className={styles.logoutArea}>
+              <button
+                type="button"
+                className={styles.logoutButton}
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                aria-busy={isLoggingOut}
+                aria-describedby={logoutError ? "logout-error" : undefined}
+              >
+                {isLoggingOut ? "로그아웃 중…" : "로그아웃"}
+              </button>
+              {logoutError && (
+                <p id="logout-error" className={styles.logoutError} role="alert">
+                  {logoutError}
+                </p>
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -335,7 +352,11 @@ export default function MyPage() {
               kind={activeUpload}
               file={files[activeUpload]}
               disabled={uploadBusy}
-              onSelect={(file) => { setUploadError(""); updateSelectedFile(activeUpload, file); }}
+              onSelect={(file) => {
+                setUploadError("");
+                updateSelectedFile(activeUpload, file);
+                if (activeUpload === "timetable") setTimetableTerm("");
+              }}
             />
           )}
         </div>

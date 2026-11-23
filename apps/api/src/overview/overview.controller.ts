@@ -18,4 +18,9 @@ export class OverviewController {
   async graduation(@Req() request: SessionRequest) {
     return { data: await this.service.graduation(request.academicSession!.userId), meta: { requestId: randomUUID() } };
   }
+  @Get('roadmap')
+  @Header('Cache-Control', 'private, no-store')
+  async roadmap(@Req() request: SessionRequest) {
+    return { data: await this.service.roadmap(request.academicSession!.userId), meta: { requestId: randomUUID() } };
+  }
 }

@@ -13,7 +13,27 @@ const gradeTotals = (rows: CourseRecord[]) => summarizeGradeTotals(rows.map(row 
 })));
 const gpa = (rows: CourseRecord[]) => gradeTotals(rows).gpa;
 
-function evaluate(rule: Requirement, input: OverviewInput, completed: CourseRecord[], projected: CourseRecord[], enrollment: CourseRecord[], unresolved: CourseRecord[]) {
+function recognize(rows: CourseRecord[], cap: number) {
+  const liberal: CourseRecord[] = [];
+  const unclassified: CourseRecord[] = [];
+  for (const row of rows) {
+    if (row.category_code === 'liberal_required' || row.category_code === 'liberal_elective') liberal.push(row);
+    else if (row.category_code === null) {
+      const category = categoryFor(row.category_snapshot ?? null);
+      if (category === 'GENERAL') liberal.push(row);
+      if (category === 'UNCLASSIFIED') unclassified.push(row);
+    }
+  }
+  const liberalCredits = sum(liberal);
+  const unknownCredits = sum(unclassified);
+  const excess = Math.max(0, round(liberalCredits - cap));
+  // If uncertain classifications can change the result, do not publish a definitive total.
+  const excessKnown = unknownCredits === 0 || liberalCredits + unknownCredits <= cap;
+  return { total: excessKnown ? round(sum(rows) - excess) : null,
+    liberalCredits: unknownCredits === 0 ? liberalCredits : null, excess: excessKnown ? excess : null };
+}
+
+function evaluate(rule: Requirement, input: OverviewInput, completed: CourseRecord[], projected: CourseRecord[], enrollment: CourseRecord[], unresolved: CourseRecord[], totals: { current: number | null; projected: number | null } | null) {
   let current: number | null = null;
   let future: number | null = null;
   let required: number | null = null;
@@ -53,15 +73,17 @@ function evaluate(rule: Requirement, input: OverviewInput, completed: CourseReco
     unit = rule.rule_type === 'course_count' ? 'courses' : 'credits';
     const measure = (rows: CourseRecord[]) => unit === 'courses'
       ? courseIds(rows).size : sum(rows);
-    current = measure(select(completed));
-    future = measure(select(projected));
+    const recognizedTotal = rule.rule_type === 'total_credits' ? totals : null;
+    current = recognizedTotal ? recognizedTotal.current : measure(select(completed));
+    future = recognizedTotal ? recognizedTotal.projected : measure(select(projected));
     required = Number(rule.rule_type === 'course_count' ? rule.min_count : rule.min_credits);
     const gradesUnknown = select(unresolved).length > 0;
     const coverageUnknown = rule.rule_type === 'category_credits'
       ? [...projected, ...unresolved].some(r => r.category_code === null)
       : rule.rule_type !== 'total_credits' && !coursesById.size;
-    status = current >= required ? 'met' : future >= required && !gradesUnknown && !coverageUnknown
-      ? 'expected' : gradesUnknown || coverageUnknown ? 'unknown' : 'unmet';
+    status = current !== null && current >= required ? 'met'
+      : current === null || future === null || gradesUnknown || coverageUnknown ? 'unknown'
+      : future >= required ? 'expected' : 'unmet';
     if (status === 'unknown' && (gradesUnknown || coverageUnknown)) {
       current = null;
       future = null;
@@ -71,6 +93,7 @@ function evaluate(rule: Requirement, input: OverviewInput, completed: CourseReco
   const enrolledIds = courseIds(enrollment);
   return {
     code: rule.rule_code, title: rule.title, type: rule.rule_type, status, unit,
+    categoryCode: rule.category_code,
     pendingReason,
     currentValue: current, projectedValue: future, requiredValue: required,
     remaining: current === null || required === null ? null : round(Math.max(0, required - current)),
@@ -99,7 +122,15 @@ export function calculateOverview(input: OverviewInput, term: AcademicTerm) {
   const majorRecords = input.records.filter(row => row.category_code === null
     ? transcriptMajor.includes(categoryFor(row.category_snapshot ?? null))
     : row.category_code === 'major_required' || row.category_code === 'major_elective');
-  const requirements = input.requirements.map(rule => evaluate(rule, input, completed, projected, enrollment, unresolved));
+  const cap = input.creditPolicy ? Number(input.creditPolicy.max_liberal_credits) : null;
+  const currentRecognition = cap === null ? null : recognize(completed, cap);
+  const projectedRecognition = cap === null ? null : recognize(projected, cap);
+  const totals = currentRecognition ? {
+    current: earnedCredits === null ? null : currentRecognition.total,
+    projected: earnedCredits === null ? null : projectedRecognition!.total,
+  } : null;
+  const requirements = input.requirements.filter(rule => rule.rule_code !== 'prerequisite_order')
+    .map(rule => evaluate(rule, input, completed, projected, enrollment, unresolved, totals));
   const total = requirements.find(r => r.type === 'total_credits');
   return {
     profile: input.profile,
@@ -107,7 +138,14 @@ export function calculateOverview(input: OverviewInput, term: AcademicTerm) {
     gpa: { overall: overallGpa, major: gpa(majorRecords), basis: gpaBasis },
     credits: {
       earned: earnedCredits, projected: earnedCredits === null ? null : sum(projected), enrolled: sum(enrollment),
-      recognized: null, recognitionPolicy: 'category-cap-policy-not-configured',
+      recognized: totals?.current ?? null,
+      recognitionPolicy: cap === null ? 'category-cap-policy-not-configured' : 'liberal-credit-cap',
+      recognition: input.creditPolicy && currentRecognition ? {
+        liberalLimit: cap!, sourceUrl: input.creditPolicy.source_url,
+        liberalEarned: earnedCredits === null ? null : currentRecognition.liberalCredits,
+        liberalExcess: earnedCredits === null ? null : currentRecognition.excess,
+        projectedLiberal: earnedCredits === null ? null : projectedRecognition!.liberalCredits,
+      } : null,
     },
     currentSemester: { courseCount: enrollment.length, credits: sum(enrollment) },
     semesterGpas: [...new Set(input.records.map(r => r.year + '/' + r.term_code))].map(key => {
@@ -130,7 +168,8 @@ export function calculateOverview(input: OverviewInput, term: AcademicTerm) {
       warnings: [
         ...(input.sets.length !== 1 ? ['Applicable graduation requirement set is missing or overlaps.'] : []),
         ...(unresolved.length ? ['Some completed grades require a verified transcript.'] : []),
-        'Category caps, GPA threshold and graduation date require additional policy data.',
+        ...(cap === null ? ['Liberal credit recognition policy is not configured.'] : []),
+        'GPA threshold and graduation date require additional policy data.',
         ...(completed.some(r => r.course_id === null) ? ['Some completed courses are not matched.'] : []),
       ],
     },

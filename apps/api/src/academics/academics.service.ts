@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { AcademicsStore } from './academics.store';
+import { academicFileName } from './academic-file-name';
 import { parseTranscript } from './parsers/transcript.parser';
 import { parseEnrollmentConfirmation } from './parsers/enrollment-confirmation.parser';
 import { DocumentExtractorUnavailable } from './parsers/document-extractor';
@@ -16,6 +17,10 @@ export interface AcademicUpload {
 @Injectable()
 export class AcademicsService {
   constructor(private readonly store: AcademicsStore) {}
+
+  latestImports(userId: string) {
+    return this.store.latestImports(userId);
+  }
 
   async submit(userId: string, grades?: AcademicUpload, timetable?: AcademicUpload, term?: AcademicTerm) {
     if (!grades && !timetable) throw new BadRequestException('업로드할 파일이 없습니다.');
@@ -53,6 +58,6 @@ export class AcademicsService {
   }
 
   private document(file: AcademicUpload, type: ParsedCourseRecord['source']['documentType'], records: ParsedCourseRecord[]) {
-    return { type, name: file.originalname, hash: createHash('sha256').update(file.buffer).digest('hex'), records };
+    return { type, name: academicFileName(file.originalname), hash: createHash('sha256').update(file.buffer).digest('hex'), records };
   }
 }

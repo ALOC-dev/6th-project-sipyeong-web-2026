@@ -10,13 +10,20 @@
 .rule:target { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 6px; }
 .ruleHeading { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
 .ruleHeading h3 { flex: 1; margin: 0; font-size: 15px; font-weight: 650; }
-.ruleHeading strong { color: var(--muted); text-align: right; font-size: 13px; font-weight: 650; }
-.ruleHeading strong[data-status="expected"] { color: var(--accent); }
-.statusDot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--muted); }
-.statusDot[data-status="met"] { background: #18a36a; }
-.statusDot[data-status="expected"] { background: var(--accent); }
-.progress { display: grid; grid-template-columns: 26px 1fr auto; gap: 9px; align-items: center; margin: 6px 0 0 16px; color: var(--muted); font-size: 13px; }
-.courseNote, .candidates { margin: 7px 0 0 16px; color: var(--muted); font-size: 13px; }
+.status { color: var(--muted); font-size: 13px; font-weight: 650; }
+.ruleHeading .status { text-align: right; }
+.status small { display: block; font-size: 11px; }
+.status[data-status="met"] { color: #805700; }
+:global([data-theme="dark"]) .status[data-status="met"] { color: #f5c951; }
+.status[data-status="expected"] { color: var(--accent); }
+.status[data-status="unmet"] { color: var(--secondary); }
+.statusIcon { --cl: var(--muted); display: block; flex: 0 0 25px; width: 25px; }
+.statusIcon[data-status="expected"] { --cl: var(--accent); }
+.statusIcon[data-status="unknown"] { --cl: var(--secondary); }
+.statusIcon svg { display: block; width: 100%; }
+.progress { display: grid; grid-template-columns: 26px 1fr auto; gap: 9px; align-items: center; margin: 6px 0 0 33px; color: var(--muted); font-size: 13px; }
+.progress[data-status="met"] .progressEarned { background: #e5b746; }
+.courseNote, .candidates { margin: 7px 0 0 33px; color: var(--muted); font-size: 13px; }
 .courseNote b { color: var(--accent); }
 .candidates summary { cursor: pointer; }
 .candidates ul { columns: 2 145px; margin: 5px 0; padding-left: 16px; list-style: disc; }
@@ -24,5 +31,6 @@
 .creditList { margin: 0 0 8px; font-size: 14px; }
 .creditList div { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .creditList dd { margin: 0; font-weight: 700; white-space: nowrap; }
+.recognized { color: var(--accent); font-weight: 750; }
 .sourceLink { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 14px; }
 @media (min-width: 900px) { .hero { padding-inline: 40px; } .sidebar { position: sticky; top: 20px; } }

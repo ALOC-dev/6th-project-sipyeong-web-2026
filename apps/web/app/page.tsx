@@ -1,19 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { displayNumber } from "./api-client";
+import { api, displayNumber, type ExpectedGraduation } from "./api-client";
 import { AppIcon } from "./app-icon";
 import { HelpButton } from "./help-button";
 import { HomeHelpDialog, type HomeHelpKind } from "./home-help-dialog";
 import { HomeHero } from "./home-hero";
 import { getHomeSemesters, loadHome, regularTerm, requirementLabel, requirementProgress } from "./home-data";
 import { forecastTargetGpa } from "./grades/grade-utils";
+import { evenSplit, futureTerms, recommend, requirementPlans, type Roadmap } from "./plan-data";
 import { useSemesterTarget } from "./semester-target";
 import { formatGraduationPeriod, getLastStudySemester, getRemainingSemesterCount } from "./profile-model";
 import { useApi } from "./use-api";
 import styles from "./home.module.css";
+
+async function loadRecommendations(signal: AbortSignal) {
+  return (await api<Roadmap>("me/roadmap", { signal })).data;
+}
+
+function UpcomingCourses({ graduation }: { graduation: ExpectedGraduation }) {
+  const { data, error, reload } = useApi(loadRecommendations);
+  const terms = data ? futureTerms(data.currentTerm, graduation) : [];
+  const remaining = data && requirementPlans(data, []).find(rule => rule.type === "total_credits")?.remaining;
+  const courses = useMemo(() => {
+    if (!data?.hasRecords) return [];
+    const future = futureTerms(data.currentTerm, graduation);
+    return future.length ? recommend(data, future, evenSplit(future, remaining ?? 0))[0].courses.slice(0, 3) : [];
+  }, [data, graduation, remaining]);
+  return <section className={styles.card}>
+    <div className={styles.cardHeading}>
+      <h2>{terms[0] ? `${terms[0]} 추천 과목` : "다음 학기 추천 과목"}</h2>
+      <Link href="/road" className={styles.cardMore}>로드맵<AppIcon name="chevron" /></Link>
+    </div>
+    {courses.length > 0 ? <ul className={styles.coursePreview}>
+      {courses.map(course => <li key={course.code}><b>{course.name}</b><span>{course.category} · {course.credits}학점</span></li>)}
+    </ul> : error ? <p className={styles.description}>추천 과목을 불러오지 못했어요. <button type="button" onClick={reload}>다시 시도</button></p>
+      : <p className={styles.description}>{data ? "추천을 확인하려면 로드맵에서 다음 학기 계획을 열어보세요." : "추천 과목을 불러오는 중…"}</p>}
+  </section>;
+}
 
 export default function Home() {
   const router = useRouter();
@@ -56,8 +82,10 @@ export default function Home() {
   const summary = [
     { label: "평점", detail: overview.gpa.major === null ? "전공 평점 자료 없음" : `전공 ${displayNumber(overview.gpa.major, 2)}`,
       value: displayNumber(overview.gpa.overall, 2), href: "/grades" },
-    { label: "인정 학점", detail: overview.credits.earned === null ? "취득 학점 확인 필요" : `취득 ${overview.credits.earned}학점`,
-      value: overview.credits.recognized === null ? "기준 미등록" : `${overview.credits.recognized}학점`, href: "/req#recognized-credits" },
+    { label: overview.credits.recognized === null ? "취득 학점" : "졸업 인정 학점",
+      detail: overview.credits.recognized !== null ? `취득 ${overview.credits.earned}학점` :
+        overview.credits.recognition ? "졸업 인정 학점 확인 필요" : "졸업 인정 학점 산정 기준 준비 중",
+      value: displayNumber(overview.credits.recognized ?? overview.credits.earned, undefined, "학점"), href: "/req#recognized-credits" },
     { label: "이번 학기", detail: [`${overview.currentSemester.courseCount}과목`, classesEnd && `${classesEnd} 종강`].filter(Boolean).join(" · "),
       value: `${overview.currentSemester.credits}학점`, href: "/grades?tab=planner" },
     { label: "남은 학기", detail: graduation ? `${formatGraduationPeriod(graduation)} 졸업 예정` : "졸업 예정 시기 확인 필요",
@@ -98,12 +126,16 @@ export default function Home() {
             return <Link href={`/req#rule-${encodeURIComponent(rule.code)}`} key={rule.code} className={styles.requirement}>
               <div className={styles.requirementRow}>
                 <span>{rule.title}</span>
+                <strong className={rule.status === "expected" ? styles.blueText : undefined}>{requirementLabel(rule)}</strong>
+                <AppIcon name="chevron" className={styles.chevron} />
+              </div>
+              <div className={styles.requirementProgress}>
+                <span>{rule.currentValue}학점</span>
                 <div className={styles.requirementTrack} aria-hidden="true">
                   <span className={styles.plannedFill} style={{ width: `${projected}%` }} />
                   <span className={styles.earnedFill} style={{ width: `${current}%` }} />
                 </div>
-                <strong className={rule.status === "expected" ? styles.blueText : undefined}>{requirementLabel(rule)}</strong>
-                <AppIcon name="chevron" className={styles.chevron} />
+                <span>{rule.requiredValue}학점</span>
               </div>
             </Link>;
           })}
@@ -111,6 +143,7 @@ export default function Home() {
       </div>
 
       <div className={styles.secondaryColumn}>
+        {graduation && <UpcomingCourses graduation={graduation} />}
         <Link href="/degrees" className={`${styles.card} ${styles.degreeCard}`}>
           <h2>마이크로디그리</h2>
           <AppIcon name="chevron" className={styles.chevron} />

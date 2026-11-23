@@ -1,288 +1,389 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { forecastTargetGpa } from "../grades/grade-utils";
 import {
-  ALLC, FUT, GRAD_SEM, LEFT, MAX_CR, NOW, PLAN_G, SEMS, crOf, evenSplit, fillSlot, fmt, gaps, newRoad, obj, offers, recommend, roadStore, sky, topTags,
+  MAX_CR, categoryName, creditsOf, evaluatePlan, evenSplit, formatDate, futureTerms, loadRoadmap,
+  newRoad, offeringFor, prerequisiteNotes, recommend, refreshPlannedCourse, requirementPlans, roundCredits, sky, termKey, useRoads,
+  type CatalogCourse, type PlannedCourse, type Semester,
 } from "../plan-data";
-import type { Course, Roads } from "../plan-data";
-import { HELP, HelpRows, Qm, Sheet, Shell, SkyHead, XIcon, cx, s, useToast } from "../sky-ui";
+import { formatGraduationPeriod } from "../profile-model";
+import { useSemesterTarget } from "../semester-target";
+import { Sheet, SkyHead, XIcon, cx, s, useToast } from "../sky-ui";
+import { useApi } from "../use-api";
 import { WeatherIcon } from "../weather-icon";
 
-const CATS = [["all", "추천순"], ["전공필수", "전공필수"], ["전공선택", "전공선택"], ["공학소양", "공학소양"], ["교양", "교양"], ["md", "디그리"]];
-const DIVS = ["교양선택", "교양필수", "전공선택", "전공필수"];
-type Kind = "dist" | "add" | "list" | "sems" | "goal";
+const divisions = ["전공필수", "전공선택", "교양필수", "교양선택", "일반선택", "미분류"];
+const semesterLabels: Record<string, string> = { "10": "1학기", "20": "2학기", SUMMER: "여름", WINTER: "겨울" };
+type Loaded = Awaited<ReturnType<typeof loadRoadmap>>;
 
-export default function Road() {
-  const roads = roadStore.use();
-  const main = roads.list.find((r) => r.id === roads.main);
+export default function RoadPage() {
+  const router = useRouter();
+  const { data, error, reload } = useApi(loadRoadmap);
+  const incomplete = data?.me.profileCompleted === false;
+  useEffect(() => { if (incomplete) router.replace("/start"); }, [incomplete, router]);
+
+  return <div className={cx(s.page, s.roadPage)}><main className={s.screen}>
+    {data?.me.profile && data.roadmap
+      ? <Road key={data.me.userId} userId={data.me.userId} profile={data.me.profile} roadmap={data.roadmap} />
+      : <section className={s.card}>
+        <h1>로드맵</h1>
+        {error ? <><p role="alert">{error}</p><button type="button" className={s.lock} onClick={reload}>다시 시도</button></>
+          : <p role="status">학업 정보를 불러오는 중…</p>}
+      </section>}
+  </main></div>;
+}
+
+function Road({ userId, profile, roadmap }: {
+  userId: string; profile: NonNullable<Loaded["me"]["profile"]>; roadmap: NonNullable<Loaded["roadmap"]>;
+}) {
+  const [roads, update] = useRoads(userId);
+  const [targetGpa] = useSemesterTarget(userId, roadmap.currentTerm);
   const [toast, toastNode] = useToast();
-  const [sheet, setSheet] = useState<Kind | null>(null);
-  const [want, setWant] = useState<number[]>([]);
-  const [addK, setAddK] = useState(0);
-  const [addF, setAddF] = useState("all");
-  const [addQ, setAddQ] = useState("");
-  const [own, setOwn] = useState({ n: "", c: "3", d: DIVS[0] });
-  const [rename, setRename] = useState<string | null>(null);
-  const [topRn, setTopRn] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<"credits" | "add" | "saved" | null>(null);
+  const [targets, setTargets] = useState<number[]>([]);
+  const [addTerm, setAddTerm] = useState("");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("");
+  const [own, setOwn] = useState({ name: "", credits: "3", category: divisions[0] });
+  const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
   const [askId, setAskId] = useState<string | null>(null);
   const ask = useRef<HTMLDialogElement>(null);
-  const board = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const d = ask.current;
-    if (askId && d && !d.open) d.showModal();
+    if (askId && ask.current && !ask.current.open) ask.current.showModal();
   }, [askId]);
 
-  function update(fn: (r: Roads) => void) {
-    const next = structuredClone(roads);
-    fn(next);
-    roadStore.set(next);
-  }
-  const mainOf = (r: Roads) => r.list.find((x) => x.id === r.main)!;
+  const current = termKey(roadmap.currentTerm);
+  const graduation = profile.expectedGraduation ?? profile.estimatedGraduation;
+  const terms = graduation ? futureTerms(roadmap.currentTerm, graduation) : [];
+  const main = roads.list.find(road => road.id === roads.main);
+  const catalog = new Map(roadmap.catalog.map(course => [course.code, course]));
+  const semesters: Semester[] = main ? terms.map(term => {
+    const saved = main.semesters.find(item => item.term === term);
+    return {
+      term, target: saved?.target ?? 0,
+      courses: saved?.courses.map(course =>
+        refreshPlannedCourse(course, course.code === null ? undefined : catalog.get(course.code), term, current)) ?? [],
+    };
+  }) : [];
+  const evaluation = evaluatePlan(roadmap, semesters);
+  const planned = creditsOf(semesters.flatMap(semester => semester.courses));
+  const remaining = requirementPlans(roadmap, []);
+  const requiredCredits = remaining.find(rule => rule.type === "total_credits")?.remaining ??
+    (roadmap.graduation.requirements.some(rule => rule.type === "total_credits" && rule.status === "met") ? 0 : null);
+  const outstanding = requirementPlans(roadmap, evaluation.accepted).filter(rule => rule.remaining > 0);
+  const plannedMajor = creditsOf(evaluation.accepted.filter(course => course.category.startsWith("전공")));
+  const plannedLiberal = creditsOf(evaluation.accepted.filter(course => course.category.startsWith("교양")));
+  const remainingLiberal = roadmap.recognition?.projectedLiberal != null
+    ? Math.max(0, roadmap.recognition.liberalLimit - roadmap.recognition.projectedLiberal) : null;
+  const activeSemester = semesters.find(item => item.term === addTerm);
+  const currentGpa = roadmap.semesterGpas.find(row => row.year === roadmap.currentTerm.year &&
+    row.termCode === roadmap.currentTerm.termCode)?.gpa;
+  const forecast = forecastTargetGpa(roadmap.gpa.basis, roadmap.currentCredits, targetGpa);
+  const activeCodes = new Set([
+    ...roadmap.completed,
+    ...roadmap.enrolled.map(course => course.code),
+    ...semesters.flatMap(item => item.courses.map(course => course.code)),
+  ]);
+  const requested = targets.reduce((total, credit) => total + credit, 0);
+  const askRoad = roads.list.find(road => road.id === askId);
+  const canPlan = terms.length > 0 && roadmap.hasRecords;
+  const unfixedRules = roadmap.graduation.requirements.some(rule =>
+    ["total_credits", "category_credits", "course_credits", "course_count"].includes(rule.type) &&
+    rule.status !== "met" && rule.projectedValue === null);
+  const manualCourseRules = roadmap.graduation.requirements.filter(rule =>
+    rule.type === "manual" && ["design12", "extra_conditions"].includes(rule.code));
 
-  function openDist() {
-    setWant(main ? main.sems.map((x) => x.want ?? crOf(x)) : evenSplit());
-    setSheet("dist");
+  function save(change: Parameters<typeof update>[0]) {
+    if (update(change)) return true;
+    toast("이 브라우저에 로드맵을 저장할 수 없습니다");
+    return false;
   }
-  function go() {
+
+  function openCredits() {
+    const suggested = evenSplit(terms, requiredCredits);
+    setTargets(terms.map((term, index) => main?.semesters.find(item => item.term === term)?.target ?? suggested[index]));
+    setSheet("credits");
+  }
+
+  function generate() {
     if (roads.list.length >= 10) return toast("로드맵은 10개까지 저장할 수 있습니다");
-    update((r) => { const road = newRoad(r.list, recommend(want, main)); r.list.unshift(road); r.main = road.id; });
-    setTopRn(null);
+    const recommended = recommend(roadmap, terms, targets, main);
+    if (!save(next => {
+      const road = newRoad(next.list, recommended);
+      next.list.unshift(road);
+      next.main = road.id;
+    })) return;
     setSheet(null);
-    scrollTo({ top: 0 });
-    toast("추천 결과를 메인 로드맵으로 저장했습니다");
+    toast("추천 결과를 메인 로드맵에 저장했습니다");
   }
-  function del(k: number, j: number) {
-    const n = main!.sems[k].c[j][0].replace("*", "");
-    update((r) => { mainOf(r).sems[k].c.splice(j, 1); });
-    toast(`${obj(n)} 삭제했습니다`);
+
+  function editSemester(term: string, change: (semester: Semester) => void) {
+    return save(next => {
+      const road = next.list.find(item => item.id === main?.id);
+      if (!road) return;
+      const semester = road.semesters.find(item => item.term === term);
+      if (semester) change(semester);
+      else {
+        const newSemester = { term, target: 0, courses: [] };
+        change(newSemester);
+        road.semesters.push(newSemester);
+        road.semesters.sort((a, b) => a.term.localeCompare(b.term));
+      }
+    });
   }
-  function openAdd(k: number, f = "all") {
-    setAddK(k); setAddF(f); setAddQ(""); setSheet("add");
+
+  function openAdd(term: string) {
+    setAddTerm(term);
+    setFilter("");
+    setQuery("");
+    setSheet("add");
   }
-  function pick(i: number) {
-    const p = ALLC[i], at = main!.sems.find((x) => x.c.some((c) => c[0] === p.n));
-    if (at) return toast(`이미 ${at.t} 계획에 있습니다`);
-    update((r) => { const sem = mainOf(r).sems[addK]; sem.c.push([p.n, p.d, p.memo ?? "", p.md ?? "", 3, 1]); fillSlot(sem, p.d, 3); });
-    toast(`${main!.sems[addK].t}에 ${obj(p.n)} 추가했습니다`);
-  }
-  function register() {
-    const n = own.n.trim(), c = Number(own.c);
-    if (!n) return toast("이름을 입력하세요");
-    if (!Number.isInteger(c) || c < 1 || c > 9) return toast("학점을 확인하세요");
-    update((r) => { const sem = mainOf(r).sems[addK]; sem.c.push([n, own.d, "", "", c, 2]); fillSlot(sem, own.d, c); });
-    setOwn({ ...own, n: "" });
-    toast(`${main!.sems[addK].t}에 ${obj(n)} 등록했습니다`);
-  }
-  function rn(id: string, v: string, done: () => void) {
-    if (!v.trim()) return toast("이름을 입력하세요");
-    update((r) => { r.list.find((x) => x.id === id)!.name = v.trim(); });
-    done();
-  }
-  function remove(yes: boolean) {
-    ask.current?.close();
-    if (yes && askId) {
-      update((r) => { r.list = r.list.filter((x) => x.id !== askId); if (r.main === askId) r.main = r.list[0]?.id ?? null; });
-      toast("삭제했습니다");
+
+  function add(course: PlannedCourse) {
+    if (!activeSemester) return false;
+    if (activeSemester.courses.some(item => course.code ? item.code === course.code : item.name === course.name)) {
+      toast("이미 이 학기 계획에 있습니다");
+      return false;
     }
-    setAskId(null);
+    if (roundCredits(creditsOf(activeSemester.courses) + course.credits) > MAX_CR) {
+      toast(`한 학기에 ${MAX_CR}학점까지 계획할 수 있습니다`);
+      return false;
+    }
+    if (editSemester(activeSemester.term, semester => semester.courses.push({ ...course, manual: true }))) {
+      toast(`${course.name} 과목을 추가했습니다`);
+      return true;
+    }
+    return false;
   }
 
-  const total = main ? main.sems.reduce((a, x) => a + crOf(x), 0) : 0;
-  const lab = (t: string) => `${+t.slice(0, 4) - 2023}-${t.slice(5)}`;
-  const cols = [
-    ...SEMS.map(([t, g]) => ({ t, k: "past", w: sky(g), label: lab(t), aria: `${t} 평점 ${g.toFixed(2)}` })),
-    { t: NOW.t, k: "now", w: sky(3.75), label: "지금", aria: `${NOW.t} 수강 중` },
-    ...FUT.map((t) => ({ t, k: "fut", w: sky(4.03), label: lab(t), aria: `${t} 계획` })),
-  ];
-  const cards = [
-    { t: `${NOW.t} 수강 중`, cr: NOW.cr, want: undefined as number | undefined, g: "목표 평점 3.75", c: NOW.c, k: -1 },
-    ...(main ? main.sems.map((x, k) => ({ t: `${x.t} 계획`, cr: crOf(x), want: x.want, g: PLAN_G, c: x.c, k })) : []),
-  ];
-  const g = main ? gaps(main.sems) : [];
-  const sem = main?.sems[addK];
-  const slot = sem?.c.find((c) => c[0] === "*교양선택");
-  const q = addQ.trim();
-  const rows = ALLC.filter((p) => (addF === "all" || (addF === "md" ? !!p.md : addF === "교양" ? p.d.startsWith("교양") : p.d === addF)) && (!q || p.n.includes(q)));
-  const sum = want.reduce((a, b) => a + b, 0);
-  const clamp = (v: number) => Math.max(0, Math.min(MAX_CR, Math.round(v || 0)));
-  const askRoad = roads.list.find((x) => x.id === askId);
+  function addCatalog(course: CatalogCourse) {
+    if (!activeSemester || activeCodes.has(course.code)) return;
+    const offering = offeringFor(course, addTerm, current);
+    const before = evaluation.before.get(addTerm);
+    if (!offering || !before || prerequisiteNotes(course, before, evaluation.confirmed).some(note => note.blocked)) return;
+    add({ code: course.code, name: course.name, category: categoryName(course), credits: offering.credits });
+  }
 
-  return (
-    <Shell at="/road">
-      <section className={s.view}>
-        <SkyHead sub="2026-2 수강 중" title="로드맵" foot={[`${GRAD_SEM} 졸업 예정`, main ? `계획 ${97 + total}학점` : "로드맵 없음"]}>
-          <div className={s.skPad}>
-            <div className={s.semsBox}>
-              <div className={s.gh}><span>학기별 평점</span><Qm k="sems" label="학기별 평점" onHelp={() => setSheet("sems")} /></div>
-              <div className={s.sems}>
-                {cols.map((x, i) => (
-                  <button key={x.t} type="button" className={x.k === "past" ? undefined : s[x.k]} aria-label={x.aria}
-                    onClick={() => { if (x.k === "fut") board.current?.children[i - SEMS.length]?.scrollIntoView({ block: "start" }); }}>
-                    {x.label}<WeatherIcon sky={x.w} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </SkyHead>
+  function addOwn() {
+    const name = own.name.trim();
+    const credits = Number(own.credits);
+    if (!name || !Number.isInteger(credits) || credits < 0 || credits > 9 || own.credits === "") {
+      return toast("과목명과 0~9 사이의 정수 학점을 입력해 주세요");
+    }
+    if ([...catalog.values(), ...roadmap.enrolled].some(course => course.name === name)) {
+      return toast("등록된 과목은 위 검색 결과에서 추가해 주세요");
+    }
+    if (add({ code: null, name, credits, category: own.category })) setOwn({ ...own, name: "" });
+  }
 
-        <div className={s.stack}>
-          <div className={s.card}>
-            {!main ? (
-              <>
-                <div className={s.ct}><h2>남은 학기 계획</h2></div>
-                <p className={s.rdMsg}>{FUT[0]}부터 {GRAD_SEM}까지 {LEFT}학점을 채울 과목을 추천합니다</p>
-                <div className={s.rdAct}>
-                  <button className={cx(s.cta, s.tap)} type="button" onClick={openDist}>추천 받기</button>
-                  {roads.list.length > 0 && <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => setSheet("list")}>저장된 로드맵</button>}
-                </div>
-              </>
-            ) : (
-              <>
-                {topRn !== null ? (
-                  <>
-                    <input className={s.srch} value={topRn} maxLength={20} aria-label="로드맵 이름" autoFocus onChange={(e) => setTopRn(e.target.value)} />
-                    <div className={s.mact} style={{ margin: "0 0 14px" }}>
-                      <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => setTopRn(null)}>취소</button>
-                      <button className={cx(s.cta, s.tap)} type="button" onClick={() => rn(main.id, topRn, () => setTopRn(null))}>확인</button>
-                    </div>
-                  </>
-                ) : (
-                  <div className={s.ct}><h2>{main.name}</h2><button className={s.more} type="button" onClick={() => setTopRn(main.name)}>이름 바꾸기</button></div>
-                )}
-                <p className={s.rdMsg}>메인 로드맵, {fmt(main.at)} 저장</p>
-                {g.length ? <ul className={s.rdWarn}>{g.map((x) => <li key={x}>{x}</li>)}</ul> : <p className={s.rdOk}>졸업요건을 모두 채우는 계획입니다</p>}
-                <div className={s.rdAct}>
-                  <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => setSheet("list")}>저장된 로드맵 {roads.list.length}개</button>
-                  <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={openDist}>새로 추천</button>
-                </div>
-              </>
-            )}
-          </div>
-          {main && (
-            <div className={s.card}>
-              <div className={s.ct}><h2>평점 계획<Qm k="goal" label="평점 계획" onHelp={() => setSheet("goal")} /></h2></div>
-              <div className={s.calc}><div><span>목표 평점</span><b>3.88</b></div><div><span>남은 학기 평균</span><b>4.03</b></div></div>
-            </div>
-          )}
-          <div className={s.semcards} ref={board}>
-            {cards.map((col) => {
-              const diff = col.want != null && col.want !== col.cr;
-              return (
-                <div key={col.t} className={s.card}>
-                  <div className={s.ct}><h2>{col.t}</h2><span className={cx(s.ctR, diff && s.diff)}>{diff && `요청 ${col.want}, `}{col.cr}학점</span></div>
-                  <p className={s.cgoal}>{col.g}</p>
-                  {col.c.map(([n, d, why, md, cr = 3, mine]: Course, j) => {
-                    const ph = n[0] === "*", nm = ph ? n.slice(1) : n;
-                    return (
-                      <div key={`${n}-${j}`} className={cx(s.crow, ph ? s.ph : s.tap)}>
-                        <span className={s.tx}>
-                          {ph ? <><b>{nm} {cr}학점</b><span>과목 미선택</span></>
-                            : <><b>{nm}</b><span>{d} {cr}학점{why && `, ${why}`}{mine === 2 && ", 직접 등록"}</span>{md && <em>{md}</em>}</>}
-                        </span>
-                        {ph && <button className={cx(s.lock, s.tap)} type="button" onClick={() => openAdd(col.k, "교양")}>선택</button>}
-                        {col.k >= 0 && <button className={cx(s.x, s.tap)} type="button" aria-label={`${nm} 삭제`} onClick={() => del(col.k, j)}><XIcon /></button>}
-                      </div>
-                    );
-                  })}
-                  {col.k >= 0 && <button className={cx(s.addc, s.tap)} type="button" onClick={() => openAdd(col.k)}>과목 추가</button>}
-                </div>
-              );
-            })}
+  function saveName() {
+    if (!rename || !rename.name.trim()) return toast("로드맵 이름을 입력해 주세요");
+    if (save(next => {
+      const road = next.list.find(item => item.id === rename.id);
+      if (road) road.name = rename.name.trim();
+    })) setRename(null);
+  }
+
+  function closeSheet() { setSheet(null); setRename(null); }
+  function removeRoad() {
+    if (save(next => {
+      next.list = next.list.filter(item => item.id !== askId);
+      if (next.main === askId) next.main = next.list[0]?.id ?? null;
+    })) {
+      toast("로드맵을 삭제했습니다");
+      ask.current?.close();
+    }
+  }
+
+  const search = query.trim().toLocaleLowerCase();
+  const rows = activeSemester ? roadmap.catalog.filter(course =>
+    (!filter || categoryName(course) === filter) &&
+    (!search || course.name.toLocaleLowerCase().includes(search) || course.code.toLocaleLowerCase().includes(search)))
+    .map(course => {
+      const offering = offeringFor(course, addTerm, current);
+      const notes = prerequisiteNotes(course, evaluation.before.get(addTerm) ?? evaluation.confirmed, evaluation.confirmed);
+      const block = activeCodes.has(course.code) ? "이수·수강·계획 중" : !offering ? "개설 자료 없음"
+        : notes.some(note => note.blocked) ? "선수과목 필요" : null;
+      return { course, offering, notes, block };
+    }).sort((a, b) => Number(!!a.block) - Number(!!b.block)) : [];
+
+  return <section className={s.view}>
+    <SkyHead sub={`${roadmap.currentTerm.year}년 ${semesterLabels[roadmap.currentTerm.termCode]}`} title="로드맵" foot={[
+      graduation ? `${formatGraduationPeriod(graduation)} 졸업 예정` : "졸업 예정 시기 확인 필요",
+      main ? `이후 학기 계획 ${planned}학점` : `이후 ${terms.length}학기`,
+    ]}>
+      <div className={s.skPad}>
+        <div className={s.semsBox}>
+          <div className={s.gh}><span>학기별 평점</span></div>
+          <div className={s.sems}>
+            {roadmap.semesterGpas.filter(row => row.gpa !== null &&
+              !(row.year === roadmap.currentTerm.year && row.termCode === roadmap.currentTerm.termCode))
+              .map(row => <button key={`${row.year}-${row.termCode}`} type="button" disabled>
+                {row.year} {semesterLabels[row.termCode] ?? row.termCode}<WeatherIcon sky={sky(row.gpa!)} />{row.gpa!.toFixed(2)}
+              </button>)}
+            <button type="button" className={s.now} onClick={() => document.getElementById("road-current")?.scrollIntoView({ block: "start" })}>
+              이번 학기{(currentGpa != null || roadmap.enrolled.length > 0) && <>
+                <WeatherIcon sky={sky(currentGpa ?? targetGpa)} />{currentGpa?.toFixed(2) ?? `목표 ${targetGpa.toFixed(2)}`}
+              </>}
+            </button>
+            {semesters.map(semester => <button type="button" key={semester.term} className={s.fut}
+              onClick={() => document.getElementById(`road-${semester.term}`)?.scrollIntoView({ block: "start" })}>
+              {semester.term} 계획
+            </button>)}
           </div>
         </div>
-      </section>
+      </div>
+    </SkyHead>
 
-      <Sheet open={!!sheet} onClose={() => { setSheet(null); setRename(null); }}
-        title={sheet === "dist" ? "학기별 학점" : sheet === "add" ? `${sem?.t}에 과목 추가` : sheet === "list" ? "저장된 로드맵" : sheet ? HELP[sheet][0] : ""}>
-        {(sheet === "sems" || sheet === "goal") && <HelpRows k={sheet} />}
-        {sheet === "dist" && (
-          <>
-            {FUT.map((t, i) => (
-              <div key={t} className={s.dist}>
-                <b>{t}</b>
-                <span className={s.stp}>
-                  <button className={s.tap} type="button" aria-label={`${t} 1학점 줄이기`} onClick={() => setWant(want.map((v, x) => x === i ? clamp(v - 1) : v))}>−</button>
-                  <input type="number" inputMode="numeric" min="0" max={MAX_CR} value={want[i]} aria-label={`${t} 학점`} onChange={(e) => setWant(want.map((v, x) => x === i ? clamp(+e.target.value) : v))} />
-                  <button className={s.tap} type="button" aria-label={`${t} 1학점 늘리기`} onClick={() => setWant(want.map((v, x) => x === i ? clamp(v + 1) : v))}>+</button>
+    <div className={s.stack}>
+      <div className={s.card}>
+        <div className={s.ct}><h2>{main?.name ?? "남은 학기 계획"}</h2>
+          {main && <button className={s.more} type="button" onClick={() => { setRename({ id: main.id, name: main.name }); setSheet("saved"); }}>이름 바꾸기</button>}
+        </div>
+        {!roadmap.hasRecords ? <p className={s.rdMsg}><Link href="/my#academic-files">성적표와 시간표를 올리면</Link> 이수 내역을 반영해 추천합니다.</p>
+          : !terms.length ? <p className={s.rdMsg}>계획할 다음 학기가 없습니다. <Link href="/start?edit=1">졸업 예정 시기 확인</Link></p>
+          : <p className={s.rdMsg}>{requiredCredits === null ? "졸업까지 필요한 학점을 확인할 자료가 부족합니다."
+              : `이번 학기 이수 예정분을 반영하면 총 인정학점 기준 최소 ${requiredCredits}학점이 필요합니다.`}</p>}
+        {canPlan && roadmap.catalog.length === 0 && <p className={s.rdWarn}>등록된 과목 개설 자료가 없습니다.</p>}
+        {canPlan && roadmap.catalog.length > 0 && <p className={s.small}>미확정 개설 학기는 과거 개설 이력으로 추정합니다.</p>}
+        {canPlan && remainingLiberal !== null &&
+          <p className={s.small}>이번 학기 이수 후 교양은 총 졸업학점에 최대 {remainingLiberal}학점 더 반영됩니다.</p>}
+        {main && <>
+          <p className={s.small}>{formatDate(main.at)} 저장 · 취득 {roadmap.earnedCredits ?? "확인 필요"}{roadmap.earnedCredits !== null && "학점"} · 이후 계획 {planned}학점</p>
+          <p className={s.small}>유효 계획 · 전공 {plannedMajor}학점 · 교양 {plannedLiberal}학점</p>
+          {(unfixedRules || roadmap.projectedCredits === null) && <p className={s.rdWarn}>자료가 부족해 일부 학점 요건은 판정할 수 없습니다.</p>}
+          {outstanding.length > 0 && <ul className={s.rdWarn}>
+            {outstanding.map(rule => <li key={rule.title}>{rule.title} · {rule.remaining}{rule.unit === "courses" ? "과목" : "학점"} 부족</li>)}
+          </ul>}
+          {requiredCredits !== null && evaluation.accepted.length > 0 && !outstanding.length && !unfixedRules && !evaluation.issues.length &&
+            <p className={s.small}>계산 가능한 과목·학점 요건을 모두 충족하는 계획입니다.</p>}
+          {manualCourseRules.length > 0 &&
+            <p className={s.small}>별도 확인 · {manualCourseRules.map(rule => rule.title).join(", ")}</p>}
+          {evaluation.issues.length > 0 && <ul className={s.rdWarn}>{evaluation.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
+          {semesters.some(semester => semester.courses.some(course => !course.code)) &&
+            <p className={s.small}>직접 등록한 과목은 졸업요건과 선수과목 판정에 반영되지 않습니다.</p>}
+          <Link href="/req" className={s.more}>졸업요건 전체 확인</Link>
+        </>}
+        <div className={s.rdAct}>
+          {canPlan && <button className={s.cta} type="button" onClick={openCredits}>{main ? "새로 추천" : "추천 받기"}</button>}
+          {roads.list.length > 0 && <button className={cx(s.cta, s.tint)} type="button" onClick={() => setSheet("saved")}>저장된 로드맵 {roads.list.length}개</button>}
+        </div>
+      </div>
+      {roadmap.currentCredits > 0 && <section className={s.card}>
+        <div className={s.ct}><h2>평점 계획</h2><Link href="/grades?tab=planner" className={s.more}>플래너</Link></div>
+        <div className={s.calc}>
+          <div><span>이번 학기 목표 평점</span><b>{targetGpa.toFixed(2)}</b></div>
+          <div><span>목표 달성 시 예상 누적 평점</span><b>{forecast?.toFixed(2) ?? "—"}</b></div>
+        </div>
+      </section>}
+      <div className={s.semcards}>
+        <section id="road-current" className={s.card}>
+          <div className={s.ct}><h2>{current} 수강 중</h2><span className={s.ctR}>{roadmap.currentCredits}학점</span></div>
+          <p className={s.cgoal}>{roadmap.enrolled.length ? `목표 평점 ${targetGpa.toFixed(2)}` : "이번 학기에 등록된 수강 과목이 없습니다."}</p>
+          {roadmap.enrolled.map(course => <div className={s.crow} key={course.code ?? course.name}>
+            <span className={s.tx}><b>{course.name}</b><span>{course.category ?? "미분류"} · {course.credits}학점</span></span>
+          </div>)}
+        </section>
+        {semesters.map(semester => {
+          const credit = creditsOf(semester.courses);
+          return <section id={`road-${semester.term}`} className={s.card} key={semester.term}>
+            <div className={s.ct}><h2>{semester.term} 계획</h2><span className={s.ctR}>{credit}학점</span></div>
+            {credit !== semester.target && <p className={s.cgoal}>희망 {semester.target}학점</p>}
+            {semester.courses.map((course, index) => {
+              const ref = course.code === null ? undefined : catalog.get(course.code);
+              const offering = ref && offeringFor(ref, semester.term, current);
+              const notes = ref ? prerequisiteNotes(ref, evaluation.before.get(semester.term) ?? evaluation.confirmed, evaluation.confirmed) : [];
+              return <div key={`${course.code ?? course.name}-${index}`} className={s.crow}>
+                <span className={s.tx}><b>{course.name}</b><span>{course.category} · {course.credits}학점{course.code === null && " · 직접 등록"}</span>
+                  {offering?.estimated && <span>개설 예상</span>}
+                  {notes.map(({ text, blocked }, i) => <em key={i} className={blocked ? s.warn : undefined}>{text}</em>)}
                 </span>
-              </div>
-            ))}
-            <div className={s.dsum}><span>합계 {sum}학점</span><span className={sum < LEFT ? s.bad : undefined}>{sum < LEFT ? `졸업까지 ${LEFT - sum}학점 부족` : `졸업까지 ${LEFT}학점 필요`}</span></div>
-            <div className={s.rdAct}>
-              <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => setWant(evenSplit())}>초기화</button>
-              <button className={cx(s.cta, s.tap)} type="button" onClick={go}>추천 받기</button>
-            </div>
-          </>
-        )}
-        {sheet === "add" && sem && (
-          <>
-            <input className={s.srch} type="search" placeholder="과목명 검색" autoComplete="off" value={addQ} aria-label="과목명 검색" onChange={(e) => setAddQ(e.target.value)} />
-            <div className={s.chips}>{CATS.map(([k, l]) => <button key={k} type="button" aria-pressed={k === addF} onClick={() => setAddF(k)}>{l}</button>)}</div>
-            <div className={s.addl}>
-              {slot && <p className={s.slot}>{sem.t} 교양선택 {slot[4]}학점이 비어 있습니다</p>}
-              {rows.map((p) => {
-                const at = main!.sems.find((x) => x.c.some((c) => c[0] === p.n));
-                const tags = topTags(p, 2, offers(p, sem.t) ? [] : [["warn", `${p.off}학기 개설`, 9]]);
-                return (
-                  <div key={p.n} className={s.crow}>
-                    <span className={s.tx}><b>{p.n}</b><span>{p.d} 3학점</span>
-                      {tags.length > 0 && <span className={s.why}>{tags.map(([c, t]) => <i key={t} className={cx(s.pill, c && s[c])}>{t}</i>)}</span>}
-                    </span>
-                    <button className={cx(s.lock, s.tap)} type="button" aria-pressed={!!at} onClick={() => pick(ALLC.indexOf(p))}>{at ? `${at.t}에 있음` : "추가"}</button>
-                  </div>
-                );
-              })}
-              {!rows.length && <p className={cx(s.small, s.c3)} style={{ margin: "4px 0 14px" }}>검색 결과가 없습니다</p>}
-            </div>
-            <div className={s.k}>직접 등록</div>
-            <div className={s.own}>
-              <input type="text" placeholder="과목명" autoComplete="off" aria-label="이름" value={own.n} onChange={(e) => setOwn({ ...own, n: e.target.value })} />
-              <input type="number" inputMode="numeric" min="1" max="9" aria-label="학점" value={own.c} onChange={(e) => setOwn({ ...own, c: e.target.value })} />
-              <select aria-label="이수구분" value={own.d} onChange={(e) => setOwn({ ...own, d: e.target.value })}>{DIVS.map((d) => <option key={d}>{d}</option>)}</select>
-            </div>
-            <button className={cx(s.cta, s.tint, s.tap)} type="button" style={{ marginTop: 10 }} onClick={register}>등록</button>
-          </>
-        )}
-        {sheet === "list" && (roads.list.length ? roads.list.map((r) => {
-          const m = r.id === roads.main;
-          return (
-            <div key={r.id} className={s.rl}>
-              {rename !== null && rename.startsWith(`${r.id}:`) ? (
-                <>
-                  <input className={s.srch} value={rename.slice(r.id.length + 1)} maxLength={20} aria-label="로드맵 이름" autoFocus onChange={(e) => setRename(`${r.id}:${e.target.value}`)} />
-                  <div className={s.mact}>
-                    <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => setRename(null)}>취소</button>
-                    <button className={cx(s.cta, s.tap)} type="button" onClick={() => rn(r.id, rename.slice(r.id.length + 1), () => setRename(null))}>확인</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className={s.rlH}><b>{r.name}</b><span className={cx(s.small, m ? s.c2 : s.c3)}>{m ? "메인" : ""}</span></div>
-                  <div className={cx(s.small, s.c3)}>{fmt(r.at)} 저장, {r.sems.map((x) => `${x.t} ${crOf(x)}`).join(", ")}학점</div>
-                  <div className={s.rlA}>
-                    {!m && <button className={cx(s.lock, s.tap)} type="button" onClick={() => { update((x) => { x.main = r.id; }); toast("메인 로드맵을 바꿨습니다"); }}>메인으로</button>}
-                    <button className={cx(s.lock, s.tap)} type="button" onClick={() => setRename(`${r.id}:${r.name}`)}>이름 바꾸기</button>
-                    <button className={cx(s.lock, s.tap)} type="button" onClick={() => setAskId(r.id)}>삭제</button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        }) : <p className={cx(s.small, s.c3)}>저장된 로드맵이 없습니다</p>)}
-      </Sheet>
+                <button className={s.x} type="button" aria-label={`${course.name} 삭제`}
+                  onClick={() => editSemester(semester.term, item => item.courses.splice(index, 1))}><XIcon /></button>
+              </div>;
+            })}
+            <button className={s.addc} type="button" onClick={() => openAdd(semester.term)}>과목 추가</button>
+          </section>;
+        })}
+      </div>
+    </div>
 
-      <dialog ref={ask} className={s.ask} aria-labelledby="askT" aria-describedby="askD" onClose={() => setAskId(null)}>
-        <h3 id="askT">로드맵 삭제</h3>
-        <p style={{ fontWeight: 600 }}>{askRoad?.name}</p>
-        <p className={cx(s.small, s.c3)} id="askD">삭제하면 되돌릴 수 없습니다</p>
-        <div className={s.mact}>
-          <button className={cx(s.cta, s.tint, s.tap)} type="button" onClick={() => remove(false)}>취소</button>
-          <button className={cx(s.cta, s.bad, s.tap)} type="button" onClick={() => remove(true)}>삭제</button>
+    <Sheet open={sheet !== null} onClose={closeSheet}
+      title={sheet === "credits" ? "학기별 학점" : sheet === "add" ? `${addTerm} 과목 추가` : "저장된 로드맵"}>
+      {sheet === "credits" && <>
+        {terms.map((term, index) => <div className={s.dist} key={term}>
+          <b>{term}</b>
+            <input className={s.creditInput} type="number" inputMode="numeric" min={0} max={MAX_CR} value={targets[index]}
+            aria-label={`${term} 학점`} onChange={event => {
+              const value = Math.min(MAX_CR, Math.max(0, Math.round(Number(event.target.value) || 0)));
+              setTargets(previous => previous.map((credit, i) => i === index ? value : credit));
+            }} />
+        </div>)}
+        <p>희망 {requested}학점{requiredCredits !== null && ` · 총 인정학점 기준 최소 ${requiredCredits}학점`}</p>
+        <p className={s.small}>과목별 요건과 교양 인정 한도를 맞추기 위해 학기당 {MAX_CR}학점 범위에서 희망 학점을 조정할 수 있습니다.</p>
+        <div className={s.rdAct}>
+          <button className={cx(s.cta, s.tint)} type="button" onClick={() => setTargets(evenSplit(terms, requiredCredits))}>초기화</button>
+          <button className={s.cta} type="button" onClick={generate}>추천 받기</button>
         </div>
-      </dialog>
-      {toastNode}
-    </Shell>
-  );
+      </>}
+      {sheet === "add" && activeSemester && <>
+        <input className={s.srch} type="search" placeholder="과목명 또는 교과번호" aria-label="과목 검색" value={query} onChange={event => setQuery(event.target.value)} />
+        <div className={s.chips}>{["", ...divisions].map(category =>
+          <button key={category} type="button" aria-pressed={filter === category} onClick={() => setFilter(category)}>{category || "전체"}</button>)}</div>
+        <div className={s.addl}>
+          {rows.slice(0, 40).map(({ course, offering, notes, block }) => <div className={s.crow} key={course.code}>
+            <span className={s.tx}><b>{course.name}</b><span>{course.code} · {categoryName(course)} · {offering?.credits ?? course.credits}학점</span>
+              {offering?.estimated && <span>개설 예상</span>}
+              {notes.map(({ text }, index) => <em key={index}>{text}</em>)}
+            </span>
+            <button className={s.lock} type="button" disabled={block !== null}
+              aria-label={`${course.name} ${block ?? "추가"}`} onClick={() => addCatalog(course)}>{block ?? "추가"}</button>
+          </div>)}
+          {rows.length > 40 && <p className={s.small}>과목명이나 교과번호로 검색하면 더 많은 과목을 찾을 수 있습니다.</p>}
+          {!rows.length && <p className={s.small}>검색 결과가 없습니다.</p>}
+        </div>
+        <div className={s.k}>직접 등록</div>
+        <div className={s.own}>
+          <input type="text" placeholder="과목명" aria-label="직접 등록 과목명" value={own.name} onChange={event => setOwn({ ...own, name: event.target.value })} />
+          <input type="number" inputMode="numeric" min={0} max={9} aria-label="직접 등록 학점" value={own.credits} onChange={event => setOwn({ ...own, credits: event.target.value })} />
+          <select aria-label="직접 등록 이수구분" value={own.category} onChange={event => setOwn({ ...own, category: event.target.value })}>
+            {divisions.map(division => <option key={division}>{division}</option>)}
+          </select>
+        </div>
+        <button className={cx(s.cta, s.tint)} type="button" onClick={addOwn}>등록</button>
+      </>}
+      {sheet === "saved" && roads.list.map(road => <div className={s.rl} key={road.id}>
+        {rename?.id === road.id ? <>
+          <input className={s.srch} aria-label="로드맵 이름" maxLength={20} value={rename.name}
+            onChange={event => setRename({ id: road.id, name: event.target.value })} />
+          <div className={s.mact}>
+            <button className={cx(s.cta, s.tint)} type="button" onClick={() => setRename(null)}>취소</button>
+            <button className={s.cta} type="button" onClick={saveName}>저장</button>
+          </div>
+        </> : <>
+          <div className={s.rlH}><b>{road.name}</b>{road.id === roads.main && <span>메인</span>}</div>
+          <div className={s.small}>{formatDate(road.at)} 저장</div>
+          <div className={s.rlA}>
+            {road.id !== roads.main && <button className={s.lock} type="button" onClick={() => save(next => { next.main = road.id; })}>메인으로</button>}
+            <button className={s.lock} type="button" onClick={() => setRename({ id: road.id, name: road.name })}>이름 바꾸기</button>
+            <button className={s.lock} type="button" onClick={() => setAskId(road.id)}>삭제</button>
+          </div>
+        </>}
+      </div>)}
+    </Sheet>
+
+    <dialog ref={ask} className={s.ask} aria-labelledby="road-delete-title" onClose={() => setAskId(null)}>
+      <h3 id="road-delete-title">로드맵 삭제</h3>
+      <p>{askRoad?.name}</p>
+      <div className={s.mact}>
+        <button className={cx(s.cta, s.tint)} type="button" onClick={() => ask.current?.close()}>취소</button>
+        <button className={cx(s.cta, s.bad)} type="button" onClick={removeRoad}>삭제</button>
+      </div>
+    </dialog>
+    {toastNode}
+  </section>;
 }

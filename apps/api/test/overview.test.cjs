@@ -70,6 +70,39 @@ test('course requirements use exact transcript codes and ignore unrelated record
   assert.equal(unresolved.graduation.requirements[0].status, 'unknown');
 });
 
+test('graduation credits subtract liberal excess without changing earned credits or GPA', () => {
+  const row = { record_id: '1', course_id: null, course_number_snapshot: 'GEN',
+    credits: '47', grade: 'A0', grade_valid: true, status: 'completed', year: 2025, term_code: '20',
+    category_code: null, category_snapshot: '교양선택' };
+  const course = (number, credits, extra) => ({ ...row, record_id: number, course_number_snapshot: number, credits, ...extra });
+  const rule = { rule_code: 'total', rule_type: 'total_credits', min_credits: '130', courses: [] };
+  const input = { profile: null, sets: [{}], languages: [],
+    creditPolicy: { max_liberal_credits: '48.0', source_url: 'https://www.uos.ac.kr' },
+    requirements: [rule, { ...rule, rule_code: 'prerequisite_order', rule_type: 'manual' }],
+    records: [
+      row, course('GEN2', '3', { category_code: 'liberal_required', category_snapshot: null }),
+      course('MAJOR', '81', { category_snapshot: '전공필수' }),
+      course('NEXT', '3', { status: 'enrolled', year: 2026 }),
+    ] };
+  const term = { year: 2026, termCode: '20' };
+  const result = calculateOverview(input, term);
+  assert.equal(result.credits.earned, 131);
+  assert.equal(result.gpa.overall, 4);
+  assert.equal(result.credits.recognized, 129);
+  assert.equal(result.credits.recognition.liberalExcess, 2);
+  assert.equal(result.credits.recognition.projectedLiberal, 53);
+  assert.equal(result.graduation.counts.total, 1);
+  assert.equal(result.graduation.requirements[0].status, 'unmet');
+  assert.equal(result.graduation.remainingCredits, 1);
+  const projected = calculateOverview({ ...input, records: [...input.records,
+    course('NEXT2', '1', { status: 'enrolled', year: 2026, category_snapshot: '전공필수' })] }, term);
+  assert.equal(projected.graduation.requirements[0].status, 'expected');
+  const unknown = calculateOverview({ ...input, records: [...input.records,
+    course('UNKNOWN', '1', { category_snapshot: null })] }, term);
+  assert.equal(unknown.credits.recognized, null);
+  assert.equal(unknown.graduation.requirements[0].status, 'unknown');
+});
+
 test('overview store loads a consistent curriculum snapshot from migrations', async (t) => {
   const db = new PGlite();
   t.after(() => db.close());
@@ -84,15 +117,40 @@ test('overview store loads a consistent curriculum snapshot from migrations', as
   await db.exec(await readFile('prisma/migrations/006_academic_overview/migration.sql', 'utf8'));
   await db.exec("INSERT INTO graduation_requirements(requirement_set_id,rule_code,rule_type,title) VALUES (1,'language','language_certification','어학')");
   await db.exec("INSERT INTO graduation_language_options(requirement_id,exam_type,min_score) SELECT requirement_id,'TOEIC',700 FROM graduation_requirements WHERE rule_code='language'");
+  await db.exec(await readFile('prisma/migrations/010_graduation_credit_recognition/migration.sql', 'utf8'));
   const input = await store.load(user);
   assert.equal(input.requirements.length, 2);
   assert.equal(input.requirements[0].min_credits, '130.0');
   assert.equal(input.requirements[1].options[0].exam_type, 'TOEIC');
   assert.deepEqual(input.requirements[0].courses, []);
   assert.equal(input.profile.admission_year, 2024);
+  assert.equal(input.creditPolicy.max_liberal_credits, '48.0');
   await db.exec(await readFile('prisma/migrations/009_uos_academic_calendar/migration.sql', 'utf8'));
   const calendar = await store.calendar({ year: 2026, termCode: '20' });
   assert.equal(calendar.opensOn, '2026-09-01');
   assert.equal(calendar.classesEndOn, '2026-12-21');
   assert.equal(await store.calendar({ year: 2027, termCode: '20' }), null);
+
+  await db.exec(`
+    INSERT INTO courses(course_number,course_name) VALUES ('100','선수 A'), ('200','선수 B'), ('300','후속 C');
+    INSERT INTO course_sections(course_id,semester_id,section_number,department_id,course_name_snapshot,credits,category_name)
+    SELECT c.course_id, s.semester_id, v.section, 34, c.course_name, v.credits, '전공선택'
+    FROM (VALUES ('100','10','01',2), ('200','10','01',3), ('300','20','01',4), ('300','20','02',4))
+      AS v(code,term,section,credits)
+    JOIN courses c ON c.course_number = v.code
+    JOIN semesters s ON s.year = 2026 AND s.term_code = v.term;
+    INSERT INTO course_prerequisite_groups(department_id,course_id,group_code,relation_type,rule_type,source_ref)
+    SELECT 34, course_id, 'core', 'required', 'any', 'test' FROM courses WHERE course_number = '300';
+    INSERT INTO course_prerequisites(prerequisite_group_id,course_id,prerequisite_course_id)
+    SELECT g.prerequisite_group_id, g.course_id, c.course_id
+    FROM course_prerequisite_groups g CROSS JOIN courses c WHERE c.course_number IN ('100','200');
+  `);
+  const catalog = await store.roadmapCatalog(34, 2024, { year: 2026, termCode: '20' }, []);
+  const followup = catalog.find(course => course.code === '300');
+  assert.equal(followup.categoryCode, null);
+  assert.equal(followup.category, '전공선택');
+  assert.deepEqual(followup.offerings, [{ year: 2026, termCode: '20', credits: 4 }]);
+  assert.deepEqual(followup.prerequisites, [{
+    relation: 'required', rule: 'any', courses: [{ code: '100', name: '선수 A' }, { code: '200', name: '선수 B' }],
+  }]);
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { HelpButton } from "../help-button";
 import Link from "next/link";
 import { GradePlanProvider, useGradePlan } from "../grade-plan-provider";
@@ -52,7 +52,8 @@ export default function GradesPage() {
 }
 
 function GradeTabs() {
-  const initialTab = useSearchParams().get("tab") === "planner" ? "planner" : "record";
+  const requested = useSearchParams().get("tab");
+  const tab = TABS.find(item => item.id === requested)?.id ?? "record";
   const { data, error, reload } = useApi(loadGrades);
   if (!data) return <main className={styles.page}>
     <GradesHeader />
@@ -61,13 +62,13 @@ function GradeTabs() {
       : <p role="status">학점 정보를 불러오는 중…</p>}</div>
   </main>;
   return <GradePlanProvider userId={data.userId} summary={data.summary} courses={data.currentCourses}>
-    <GradePanels key={initialTab} data={data} initialTab={initialTab} />
+    <GradePanels data={data} tab={tab} />
   </GradePlanProvider>;
 }
 
-function GradePanels({ data, initialTab }: { data: GradeData; initialTab: Tab }) {
+function GradePanels({ data, tab }: { data: GradeData; tab: Tab }) {
+  const router = useRouter();
   const { currentGpa, target, locks, setTarget, setLocks, plan, forecast } = useGradePlan();
-  const [tab, setTab] = useState<Tab>(initialTab);
   const [courseId, setCourseId] = useState(data.currentCourses[0]?.id ?? "");
   const [forms, setForms] = useState<Record<string, PredictorForm>>({});
   const [goals, setGoals] = useState<Record<string, GoalGrade>>({});
@@ -79,6 +80,10 @@ function GradePanels({ data, initialTab }: { data: GradeData; initialTab: Tab })
   const goal = goals[courseId] ?? "B+";
   const { validation, exclusion, input, result } = predict(form, goal);
   const cutoffs = validation.ok ? validation.value.cutoffs : null;
+
+  function setTab(next: Tab) {
+    if (next !== tab) router.replace(next === "record" ? "/grades" : `/grades?tab=${next}`, { scroll: false });
+  }
 
   function changeForm(key: keyof PredictorForm, value: string) {
     // 과목을 바꿔도 각 과목의 점수·비율이 다른 과목에 섞이지 않는다.
@@ -143,7 +148,7 @@ function GradePanels({ data, initialTab }: { data: GradeData; initialTab: Tab })
               <div className={styles.weightHeading}><h2>평가 비율</h2><button type="button" className={styles.textButton} aria-haspopup="dialog" onClick={() => setShowSettings(true)}>평가 기준 설정</button></div>
               <div className={styles.weightSummary}>{WEIGHT_FIELDS.map((field) => <div key={field.key}><span>{field.label}</span><strong>{form[field.key] || "—"}%</strong></div>)}</div>
             </div>
-            <p className={styles.hint}>평가 비율은 기본값입니다. 실제 강의계획서에 맞게 수정하고 수강 인원과 중간고사 등수를 입력하세요.</p>
+            <p className={styles.hint}>평가 비율을 강의계획서와 맞춘 뒤 수강 인원과 중간고사 등수를 입력하세요.</p>
             <ScoreRow label="출석" scoreKey="attendanceScore" maxKey="attendanceMax" form={form} onChange={changeForm} />
             <ScoreRow label="과제" scoreKey="assignmentScore" maxKey="assignmentMax" form={form} onChange={changeForm} />
             <div className={styles.inputRow}><label htmlFor="mid-rank">중간고사 등수 {!exclusion && <span className={styles.required}>필수</span>}</label><div className={styles.fraction}><input id="mid-rank" type="number" min="1" max={Number(form.enrollment) || undefined} step="1" required={!exclusion} value={form.midRank} aria-invalid={!exclusion && !validation.ok && Boolean(validation.errors.midRank)} onChange={(event) => changeForm("midRank", event.target.value)} /><span>/</span><input type="number" min="1" max="10000" step="1" value={form.enrollment} aria-label="수강 인원" onChange={(event) => changeForm("enrollment", event.target.value)} /></div></div>

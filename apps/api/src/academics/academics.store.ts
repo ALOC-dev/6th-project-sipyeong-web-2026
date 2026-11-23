@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { matchCourse } from './course-matcher';
+import { academicFileName } from './academic-file-name';
 import type { ParsedCourseRecord } from './parsers/parsed-course-record';
 import { buildValidationSummary } from './validation-summary';
 
@@ -19,6 +20,20 @@ export class AcademicsStore implements OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.database.end();
+  }
+
+  async latestImports(userId: string) {
+    const { rows } = await this.database.query<{
+      kind: 'grades' | 'timetable'; name: string; appliedAt: Date;
+    }>(`
+      SELECT DISTINCT ON (document_type)
+        CASE WHEN document_type = 'transcript' THEN 'grades' ELSE 'timetable' END AS kind,
+        file_name AS name, committed_at AS "appliedAt"
+      FROM academic_imports
+      WHERE user_id = $1 AND status = 'committed'
+      ORDER BY document_type, committed_at DESC, import_id DESC
+    `, [userId]);
+    return Object.fromEntries(rows.map(({ kind, name, appliedAt }) => [kind, { name: academicFileName(name), appliedAt }]));
   }
 
   async save(userId: string, documents: AcademicDocument[]) {

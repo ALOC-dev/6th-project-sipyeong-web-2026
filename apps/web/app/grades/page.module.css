@@ -153,3 +153,8 @@
 }
 :global(html[data-theme="dark"]) .tabs { background: var(--soft); }
 :global(html[data-theme="dark"]) .header { background-image: linear-gradient(180deg, #060C22, #122550) !important; }
+.semesterNavigation { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.semesterNavigation button { display: inline-flex; align-items: center; gap: 4px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--soft); font-size: 13px; }
+.semesterNavigation button:disabled { opacity: .45; }
+.semesterNavigation svg { width: 14px; height: 14px; }
+.semesterNavigation button:first-child svg { transform: rotate(180deg); }

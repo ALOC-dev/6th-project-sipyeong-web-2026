@@ -4,6 +4,7 @@ export interface CourseRecord {
   grade_point: string | null; grade_valid: boolean | null; status: 'completed' | 'enrolled' | 'withdrawn';
   year: number; term_code: string; category_code: string | null;
   category_snapshot?: string | null;
+  catalog_course_number?: string | null;
 }
 export interface Requirement {
   requirement_id: number; rule_code: string; rule_type: string; title: string;
@@ -13,6 +14,7 @@ export interface Requirement {
   options: { exam_type: string; min_score: string | null; accepted_grade: string | null }[];
 }
 export interface OverviewInput {
+  creditPolicy?: { max_liberal_credits: string; source_url: string } | null;
   profile: { department_id: number; department_name: string; admission_year: number;
     student_no: string | null; enrolled_semesters: number | null; academic_status: string | null;
     expected_graduation_year: number | null; expected_graduation_term_code: '10' | '20' | null;

@@ -229,6 +229,10 @@
 .dist { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; }
 .dist + .dist { border-top: 1px solid var(--line); }
 .dist b { font-size: 15.5px; font-weight: 600; }
+.creditInput { width: 4.5rem; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); text-align: right; }
+.roadPage .sems { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); }
+.roadPage :is(.sems button, .lock):disabled { cursor: default; }
+.roadPage .lock:disabled { opacity: .62; }
 .stp { display: flex; align-items: center; gap: 6px; }
 .stp button { width: 36px; height: 36px; border: none; border-radius: 10px; background: var(--soft); color: var(--fg-2); font-size: 18px; font-weight: 700; }
 .stp input { width: 56px; padding: 8px 4px; border: none; border-radius: 10px; background: var(--soft); font-size: 15px; font-weight: 700; text-align: center; }
@@ -278,6 +282,7 @@
 
 @media (min-width: 900px) {
   .page { display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+  .roadPage { display: block; }
   .rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: 6px; height: 100vh; padding: 24px 16px; border-right: 1px solid var(--line); background: var(--card); }
   .nv { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 12px; color: var(--fg-2); font-weight: 600; text-decoration: none; }
   .nv:hover { background: var(--soft); }
