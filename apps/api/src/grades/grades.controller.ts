@@ -37,13 +37,13 @@ function semesterView(row: SemesterRow) {
   return { ...row, term, name: row.year + '학년도 ' + label, isCurrent: false };
 }
 
-function paginate<T>(items: T[], rawLimit: unknown, rawCursor: unknown, scope: string) {
+function pagination(rawLimit: unknown, rawCursor: unknown) {
   const limit = rawLimit === undefined ? 20 :
     typeof rawLimit === 'string' && /^\d{1,3}$/.test(rawLimit) ? Number(rawLimit) : NaN;
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw new BadRequestException({ code: 'INVALID_QUERY', message: '조회 개수는 1~100 사이여야 합니다.' });
   }
-  let offset = 0;
+  let cursor: [scope: string, offset: number] | null = null;
   if (rawCursor !== undefined) {
     if (typeof rawCursor !== 'string' || !/^[A-Za-z0-9_-]{1,1024}$/.test(rawCursor)) {
       throw new BadRequestException({ code: 'INVALID_QUERY', message: '페이지 커서가 올바르지 않습니다.' });
@@ -58,11 +58,16 @@ function paginate<T>(items: T[], rawLimit: unknown, rawCursor: unknown, scope: s
         !Number.isSafeInteger(saved[1]) || saved[1] < 1) {
       throw new BadRequestException({ code: 'INVALID_QUERY', message: '페이지 커서가 올바르지 않습니다.' });
     }
-    if (saved[0] !== scope || saved[1] >= items.length) {
-      throw new ConflictException({ code: 'CURSOR_STALE', message: '조회 조건이 변경되었습니다. 다시 조회해 주세요.' });
-    }
-    offset = saved[1];
+    cursor = [saved[0], saved[1]];
   }
+  return { limit, cursor };
+}
+
+function paginate<T>(items: T[], { limit, cursor }: ReturnType<typeof pagination>, scope: string) {
+  if (cursor && (cursor[0] !== scope || cursor[1] >= items.length)) {
+    throw new ConflictException({ code: 'CURSOR_STALE', message: '조회 조건이 변경되었습니다. 다시 조회해 주세요.' });
+  }
+  const offset = cursor?.[1] ?? 0;
   const next = offset + limit;
   const nextCursor = next < items.length ? Buffer.from(JSON.stringify([scope, next])).toString('base64url') : null;
   return { items: items.slice(offset, next), nextCursor };
@@ -98,6 +103,7 @@ export class GradesController {
   ) {
     const filter = categoryFilter(queryCategory);
     const { userId } = request.academicSession!;
+    const paging = pagination(limit, cursor);
     const snapshot = await this.store.read(userId, null);
     const bySemester = new Map<string, GradeRow[]>();
     for (const row of filterGrades(snapshot.rows, filter)) {
@@ -107,7 +113,7 @@ export class GradesController {
       else bySemester.set(key, [row]);
     }
     const scope = JSON.stringify([userId, basis(snapshot.studentDataVersion), null, filter]);
-    const page = paginate([...bySemester.values()], limit, cursor, scope);
+    const page = paginate([...bySemester.values()], paging, scope);
     const items = page.items.map(rows => ({ semester: semesterView(rows[0].semester), ...summarizeGrades(rows, filter) }));
     return envelope({ items, basis: basis(snapshot.studentDataVersion) }, page.nextCursor);
   }
@@ -126,12 +132,13 @@ export class GradesController {
     }
     const filter = categoryFilter(queryCategory);
     const { userId } = request.academicSession!;
+    const paging = pagination(limit, cursor);
     const snapshot = await this.store.read(userId, semesterId);
     if (!snapshot.semester) throw new NotFoundException('존재하지 않는 학기입니다.');
     const rows = filterGrades(snapshot.rows, filter);
     const gradeBasis = basis(snapshot.studentDataVersion);
     const scope = JSON.stringify([userId, gradeBasis, semesterId, filter]);
-    const page = paginate(rows, limit, cursor, scope);
+    const page = paginate(rows, paging, scope);
     const { warnings, ...summary } = summarizeGrades(rows, filter);
     return envelope({
       semester: semesterView(snapshot.semester), summary, items: page.items.map(presentRecord), basis: gradeBasis, warnings,
