@@ -2,6 +2,8 @@
 
 로그인 세션 쿠키로 본인 성적을 조회합니다. 응답은 data/meta 형식이며 학기 목록과 상세의 limit은 기본 20, 최대 100입니다. 다음 페이지는 meta.nextCursor로 조회합니다. 데이터 버전, 필터 또는 학기가 바뀌면 409 CURSOR_STALE을 반환합니다.
 
+`meta.nextCursor`가 null이면 마지막 페이지입니다. 잘못된 limit·커서 형식은 성적 DB 조회 전에 400 INVALID_QUERY로 거절합니다. 형식이 유효한 커서는 데이터 버전·필터·학기와 비교한 뒤 사용합니다.
+
 | 경로 | 내용 |
 | --- | --- |
 | GET /api/grades/summary | 전체 또는 교과구분별 취득학점, 수강 중 학점, GPA |

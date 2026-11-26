@@ -75,6 +75,19 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal((await get('summary', null)).status, 401);
   assert.equal((await get('summary?category=invented')).status, 400);
   assert.equal((await get('semesters/9999')).status, 404);
+  const gradeStore = app.get(GradesStore);
+  const readGrades = gradeStore.read.bind(gradeStore);
+  let gradeReads = 0;
+  gradeStore.read = (...args) => { gradeReads++; return readGrades(...args); };
+  for (const path of ['semesters', spring, 'semesters/9999']) {
+    for (const query of ['limit=0', 'limit=101', 'limit=1.5', 'cursor=not-a-cursor', 'cursor=']) {
+      const response = await get(path + '?' + query);
+      assert.equal(response.status, 400, path + '?' + query);
+      assert.equal((await response.json()).error.code, 'INVALID_QUERY');
+    }
+  }
+  assert.equal(gradeReads, 0, 'invalid pagination must not read student records');
+  gradeStore.read = readGrades;
   const empty = (await (await get('semesters/' + semester(2025, '10'))).json()).data;
   assert.deepEqual(empty.items, []);
   assert.equal(empty.summary.earnedCredits, 0);
