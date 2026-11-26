@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 type Cell = string | number | boolean | null;
-export interface DocumentTable { name: string; rows: Cell[][] }
+export interface DocumentTable { name: string; rows: Cell[][]; text?: string }
 
 export class DocumentExtractorUnavailable extends Error {}
 

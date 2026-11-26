@@ -131,6 +131,22 @@ export function refreshPlannedCourse(planned: PlannedCourse, course: CatalogCour
   return course && offering ? { ...planned, name: course.name, category: categoryName(course), credits: offering.credits } : planned;
 }
 
+export const courseNameKey = (name: string) => name.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
+
+export function additionProblem(roadmap: Roadmap, semesters: Semester[], term: string, course: PlannedCourse) {
+  const semester = semesters.find(item => item.term === term);
+  if (!semester) return "추가할 학기를 다시 선택해주세요";
+  const name = courseNameKey(course.name);
+  const duplicate = [...roadmap.enrolled, ...semesters.flatMap(item => item.courses)].some(item =>
+    (course.code !== null && item.code === course.code) ||
+    ((course.code === null || item.code === null) && courseNameKey(item.name) === name));
+  const completed = course.code !== null ? roadmap.completed.includes(course.code)
+    : roadmap.catalog.some(item => roadmap.completed.includes(item.code) && courseNameKey(item.name) === name);
+  if (duplicate || completed) return "이미 이수·수강 중이거나 다른 학기를 포함한 계획에 있는 과목입니다";
+  if (roundCredits(creditsOf(semester.courses) + course.credits) > MAX_CR) return `한 학기에 ${MAX_CR}학점까지 계획할 수 있습니다`;
+  return null;
+}
+
 export function evaluatePlan(roadmap: Roadmap, semesters: Semester[]) {
   const confirmed = new Set(roadmap.completed);
   const ready = new Set([...confirmed, ...roadmap.enrolled.flatMap(course => course.code ?? [])]);
@@ -166,6 +182,18 @@ export function evaluatePlan(roadmap: Roadmap, semesters: Semester[]) {
     for (const code of thisTerm) ready.add(code);
   }
   return { confirmed, before, accepted, issues };
+}
+
+// Course plans certify course/credit requirements; manual requirements remain separate.
+export function validateRecommendedPlan(roadmap: Roadmap, semesters: Semester[]) {
+  const evaluation = evaluatePlan(roadmap, semesters);
+  const outstanding = requirementPlans(roadmap, evaluation.accepted).filter(rule => rule.remaining > 0);
+  const unresolved = roadmap.graduation.requirements.filter(rule =>
+    ["total_credits", "category_credits", "course_credits", "course_count"].includes(rule.type) &&
+    rule.status !== "met" && (rule.requiredValue === null || rule.projectedValue === null));
+  const hasTotal = roadmap.graduation.requirements.some(rule => rule.type === "total_credits");
+  return { ...evaluation, outstanding, unresolved,
+    ready: hasTotal && !evaluation.issues.length && !outstanding.length && !unresolved.length };
 }
 
 export function recommend(roadmap: Roadmap, terms: string[], targets: number[], existing?: Road) {

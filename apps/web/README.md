@@ -4,7 +4,7 @@ Next.js App Router, React, TypeScript, CSS Modules로 구성한 로그인, 학�
 
 ## 로컬 연동
 
-Node.js 24를 사용합니다. 저장소 루트에서 `npm ci`를 실행합니다. API 환경 파일은 `apps/api/.env`에 두고, 팀의 개발 PostgreSQL에 연결합니다. DB 연결 문자열과 카카오 키는 API 환경 파일에서 관리합니다.
+Node.js 24를 사용합니다. 저장소 루트에서 `npm ci`를 실행합니다. API 환경 파일은 `apps/api/.env`에 두고, 팀 공용 Neon PostgreSQL에 연결합니다. 로컬 PostgreSQL 설치나 덤프 복원은 필요 없으며, 최초 설정은 [루트 실행 안내](../../README.md)를 따릅니다. DB 연결 문자열과 카카오 키는 API 환경 파일에서 관리합니다.
 
 기존 카카오 콜백이 `http://localhost:3001/api/auth/login/kakao/callback`에 등록된 개발 환경에서는 브라우저가 Next.js의 3001번 포트에 접속하고, Next.js가 `/api`를 NestJS의 3003번 포트로 전달합니다. BE의 `WEB_ORIGIN`은 `http://localhost:3001`이어야 합니다. 등록된 카카오 콜백 URI와 `KAKAO_REDIRECT_URI`를 일치시킵니다.
 
@@ -14,19 +14,17 @@ VS Code에서 저장소 루트 폴더를 엽니다. `Ctrl+Shift+P`에서 **Tasks
 
 ```powershell
 # API
-$env:PORT = '3003'
 npm run dev
 ```
 
 ```powershell
 # 프론트
-$env:SIPYEONG_API_ORIGIN = 'http://127.0.0.1:3003'
-npm run dev -w @sipyeong/web -- -H 127.0.0.1 -p 3001
+npm run dev:web
 ```
 
 브라우저에서 `http://localhost:3001/api/health`의 200 응답을 확인하고 `http://localhost:3001/`에서 카카오 로그인을 시작합니다. 신규 사용자는 학적 정보를 저장한 뒤 성적표 XLSX를 올립니다. 등록된 사용자는 홈에서 학점 기록을 열거나 내 정보에서 파일을 다시 올릴 수 있습니다.
 
-업로드 검증 전 [업로드 안내](../../docs/academic-upload.md)의 Python 환경 설정과 [DB 마이그레이션](../api/prisma/README.md)을 적용합니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 로그인 설정은 [카카오 인증](../../docs/kakao-auth.md)을 참고합니다.
+업로드 검증 전 [업로드 안내](../../docs/academic-upload.md)의 Python 환경을 설정합니다. 공용 DB의 [마이그레이션](../api/prisma/README.md)은 담당자가 적용하며 각 PC에서 DB를 초기화하지 않습니다. 졸업요건은 해당 학과와 입학연도에 적용되는 요건 세트가 필요합니다. 로그인 설정은 [카카오 인증](../../docs/kakao-auth.md)을 참고합니다.
 
 ## 검증
 

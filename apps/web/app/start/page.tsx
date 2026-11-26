@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { loadAccount, type CurriculumRule } from "../academic-account";
+import { loadAccount } from "../academic-account";
 import { TimetableTermSelect, uploadInfo } from "../academic-upload";
 import { change, errorMessage, isStale, requiresLogin, uploadErrorMessage, uploadFiles, validateFile } from "../api-client";
-import type { Department, FileKind, Profile, Warning } from "../api-client";
+import type { Department, FileKind, Profile } from "../api-client";
 import { useApi } from "../use-api";
 import { pretendard } from "../fonts/pretendard";
 import { WeatherIcon } from "../weather-icon";
@@ -59,8 +59,6 @@ function StartContent() {
       initialProfile={account.data.me.profile}
       initialCompleted={account.data.me.profileCompleted}
       departments={account.data.departments}
-      curriculumRules={account.data.curriculumRules}
-      initialWarnings={account.data.warnings}
       reload={account.reload}
       editing={editing}
     />;
@@ -73,12 +71,10 @@ function StartContent() {
   </div>;
 }
 
-function Onboarding({ initialProfile, initialCompleted, departments, curriculumRules, initialWarnings, reload, editing }: {
+function Onboarding({ initialProfile, initialCompleted, departments, reload, editing }: {
   initialProfile: Profile | null;
   initialCompleted: boolean;
   departments: Department[];
-  curriculumRules: CurriculumRule[];
-  initialWarnings: Warning[];
   reload: () => void;
   editing: boolean;
 }) {
@@ -88,7 +84,6 @@ function Onboarding({ initialProfile, initialCompleted, departments, curriculumR
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
-  const [warnings, setWarnings] = useState(initialWarnings);
   const [profile, setProfile] = useState(initialProfile);
   const [files, setFiles] = useState<Partial<Record<FileKind, File | null>>>({});
   const [fileErrors, setFileErrors] = useState<Partial<Record<FileKind, string>>>({});
@@ -137,7 +132,6 @@ function Onboarding({ initialProfile, initialCompleted, departments, curriculumR
         ...changes,
       });
       setProfile(response.data.profile);
-      setWarnings(response.meta.warnings ?? []);
       finishProfile();
     });
   }
@@ -174,11 +168,10 @@ function Onboarding({ initialProfile, initialCompleted, departments, curriculumR
     <section className={styles.view}>
       <SkyHead step={editing ? undefined : step}
         title={editing ? "학적 정보 수정" : step === 1 ? "학과와 입학연도" : "성적 입력"} back={back} />
-      {warnings.map((warning) => <p className={styles.message} key={warning.code} role="status">{warning.message}</p>)}
       {error && <p className={`${styles.message} ${styles.bad}`} role="alert">{error}</p>}
       {step === 1 ? (
         <ProfileForm
-          profile={profile} departments={departments} rules={curriculumRules}
+          profile={profile} departments={departments}
           busy={busy} stale={stale} editing={editing} onSave={save}
         />
       ) : (

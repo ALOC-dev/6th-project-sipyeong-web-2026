@@ -78,7 +78,7 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.equal((await fetch(base + '/departments?limit=0', { headers: { Cookie: cookie } })).status, 400);
   assert.equal((await patch({ expectedRevision: 0, volunteerHours: 1 })).status, 422);
 
-  const registration = { expectedRevision: 0, departmentId: '34', admissionYear: 2023, curriculumYear: 2023 };
+  const registration = { expectedRevision: 0, departmentId: '34', admissionYear: 2023 };
   const blocked = await patch(registration, 'invalid');
   assert.equal(blocked.status, 403);
   assert.equal((await blocked.json()).error.code, 'CSRF_INVALID');
@@ -86,10 +86,11 @@ test('profile onboarding persists for the authenticated account and validates up
   const registered = await patch(registration);
   assert.equal(registered.status, 200);
   const details = await registered.json();
-  assert.equal(details.meta.warnings[0].code, 'CURRICULUM_POLICY_UNKNOWN');
+  assert.equal(details.meta.warnings, undefined);
   assert.equal(details.data.studentDataVersion, 1);
   const { studySemester, estimatedGraduation, ...registeredProfile } = details.data.profile;
   assert.deepEqual(registeredProfile, {
+    displayName: null,
     departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: null,
     expectedGraduation: null, volunteerHours: null, languageScores: [], revision: 1,
   });
@@ -123,17 +124,11 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.deepEqual(current.profile.expectedGraduation, expectedGraduation);
   assert.equal((await (await me('sipyeong_session=' + anotherToken)).json()).data.profile, null);
 
-  await database.query('INSERT INTO curriculum_rules VALUES (34, 2023, 2024)');
-  const outdated = await (await me()).json();
-  assert.equal(outdated.data.profileCompleted, false);
-  assert.equal(outdated.meta.warnings[0].code, 'CURRICULUM_SELECTION_REQUIRED');
-  await database.query('INSERT INTO curriculum_rules VALUES (34, 2023, 2023)');
   const departmentOptions = await fetch(base + '/departments', { headers: { Cookie: cookie } });
-  assert.deepEqual((await departmentOptions.json()).data.curriculumRules, [
-    { departmentId: '34', admissionYear: 2023, curriculumYear: 2023 },
-    { departmentId: '34', admissionYear: 2023, curriculumYear: 2024 },
-  ]);
-  assert.equal((await patch({ expectedRevision: 2, curriculumYear: 2025 })).status, 422);
+  const mappings = (await departmentOptions.json()).data.curriculumRules;
+  assert.equal(mappings.length, 7);
+  assert.deepEqual(mappings.find(rule => rule.admissionYear === 2023),
+    { departmentId: '34', admissionYear: 2023, curriculumYear: 2023 });
   assert.equal((await patch({ expectedRevision: 2, volunteerHours: null, languageScores: [] })).status, 200);
   const cleared = await (await me()).json();
   assert.equal(cleared.data.profile.volunteerHours, null);
@@ -147,9 +142,21 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.equal((await patch({ expectedRevision: 4, expectedGraduation: null })).status, 200);
   assert.equal((await (await me()).json()).data.profile.expectedGraduation, null);
   assert.equal((await patch({ expectedRevision: 5, studySemester: 9 })).status, 422);
-  const automatic = await patch({ expectedRevision: 5, studySemester: 4 });
+  const automatic = await patch({ expectedRevision: 5, admissionYear: 2024, curriculumYear: 2025, studySemester: 4 });
   assert.equal(automatic.status, 200);
   const automaticProfile = (await automatic.json()).data.profile;
   assert.equal(automaticProfile.studySemester, 4);
+  assert.equal(automaticProfile.admissionYear, 2024);
+  assert.equal(automaticProfile.curriculumYear, 2024);
+  assert.equal((await database.query('SELECT curriculum_year FROM student_profiles')).rows[0].curriculum_year, 2024);
   assert.deepEqual(automaticProfile.expectedGraduation, graduationAfterEightSemesters(currentAcademicTerm(), 4));
+  for (const displayName of ['', '   ', 'a'.repeat(51), '김\n민복', 123, null]) {
+    assert.equal((await patch({ expectedRevision: 6, displayName })).status, 422);
+  }
+  assert.equal((await patch({ expectedRevision: 6, displayName: '김민복' })).status, 422);
+  await database.query('UPDATE student_profiles SET display_name=$1 WHERE user_id=$2', ['김민복', initialBody.data.userId]);
+  assert.equal((await (await me()).json()).data.displayName, '김민복');
+  assert.equal((await patch({ expectedRevision: 6, volunteerHours: 1 })).status, 200);
+  assert.equal((await (await me()).json()).data.profile.displayName, '김민복');
+  assert.equal((await (await me('sipyeong_session=' + anotherToken)).json()).data.displayName, '학생');
 });

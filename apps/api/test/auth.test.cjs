@@ -119,6 +119,7 @@ test('Kakao signup, profile persistence across sign-ins, state replay and sessio
   const { expectedRevision, languageScores, ...registeredFields } = registration;
   const { studySemester, estimatedGraduation, ...savedFields } = saved.profile;
   assert.deepEqual(savedFields, {
+    displayName: null,
     ...registeredFields,
     languageScores: languageScores.map(score => ({ ...score, grade: null })),
     revision: expectedRevision + 1,

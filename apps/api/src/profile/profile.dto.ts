@@ -1,4 +1,6 @@
 export const supportedDepartmentId = '34';
+export const firstAdmissionYear = 2020;
+export const lastAdmissionYear = 2026;
 
 export interface LanguageScore {
   examType: string;
@@ -15,7 +17,6 @@ export interface ExpectedGraduation {
 export interface ProfilePatch {
   departmentId?: string;
   admissionYear?: number;
-  curriculumYear?: number;
   studentNumber?: string | null;
   volunteerHours?: number | null;
   languageScores?: LanguageScore[];
@@ -66,7 +67,7 @@ export function parseProfilePatch(value: unknown): ProfilePatch | undefined {
   const { departmentId, admissionYear, curriculumYear, studentNumber, volunteerHours, expectedRevision } = value;
   if (!integer(expectedRevision, 0, 2_147_483_646) ||
       (departmentId !== undefined && departmentId !== supportedDepartmentId) ||
-      (admissionYear !== undefined && !integer(admissionYear, 2020, 2026)) ||
+      (admissionYear !== undefined && !integer(admissionYear, firstAdmissionYear, lastAdmissionYear)) ||
       (curriculumYear !== undefined && !integer(curriculumYear, 1900, 9999)) ||
       (studentNumber != null && !textField(studentNumber, 30)) ||
       (volunteerHours != null && (typeof volunteerHours !== 'number' || !Number.isFinite(volunteerHours) ||
@@ -93,7 +94,7 @@ export function parseProfilePatch(value: unknown): ProfilePatch | undefined {
   }
 
   return {
-    expectedRevision, departmentId, admissionYear, curriculumYear, studySemester,
+    expectedRevision, departmentId, admissionYear, studySemester,
     studentNumber: typeof studentNumber === 'string' ? studentNumber.trim() : studentNumber,
     volunteerHours, expectedGraduation: graduation, languageScores: languageScores === undefined ? undefined : scores,
   };

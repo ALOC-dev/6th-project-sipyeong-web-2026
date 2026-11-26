@@ -1,5 +1,4 @@
 import { useRef, useState, type FormEvent } from "react";
-import type { CurriculumRule } from "../academic-account";
 import type { Department, LanguageScore, Profile } from "../api-client";
 import { estimateGraduationFromSemester, formatGraduationPeriod } from "../profile-model";
 import styles from "./page.module.css";
@@ -7,34 +6,20 @@ import styles from "./page.module.css";
 const admissionYears = [2026, 2025, 2024, 2023, 2022, 2021, 2020];
 const maxScores = 50;
 
-export type ProfileChanges = Partial<Pick<Profile, "departmentId" | "admissionYear" | "volunteerHours" | "languageScores" | "studySemester">> & {
-  curriculumYear?: number;
-};
+export type ProfileChanges = Partial<Pick<Profile, "departmentId" | "admissionYear" | "volunteerHours" | "languageScores" | "studySemester">>;
 
 type ScoreDraft = { id: number; examType: string; score: string; grade: string; takenAt: string };
 
-function defaultCurriculum(options: number[], current = "") {
-  if (!options.length || options.includes(Number(current))) return current;
-  return options.length === 1 ? String(options[0]) : "";
-}
-
-export function ProfileForm({ profile, departments, rules, busy, stale, editing, onSave }: {
+export function ProfileForm({ profile, departments, busy, stale, editing, onSave }: {
   profile: Profile | null;
   departments: Department[];
-  rules: CurriculumRule[];
   busy: boolean;
   stale: boolean;
   editing: boolean;
   onSave: (changes: ProfileChanges) => void;
 }) {
-  const getYears = (departmentId: string, year: string) => rules
-    .filter(rule => rule.departmentId === departmentId && rule.admissionYear === Number(year))
-    .map(rule => rule.curriculumYear);
   const [departmentId, setDepartmentId] = useState(profile?.departmentId ?? (departments.length === 1 ? departments[0].departmentId : ""));
   const [admissionYear, setAdmissionYear] = useState(String(profile?.admissionYear ?? ""));
-  const [curriculumYear, setCurriculumYear] = useState(() => defaultCurriculum(
-    getYears(departmentId, admissionYear), String(profile?.curriculumYear ?? ""),
-  ));
   const [studySemester, setStudySemester] = useState(String(profile?.studySemester ?? ""));
   const graduation = studySemester ? (Number(studySemester) === profile?.studySemester
     ? profile.expectedGraduation ?? profile.estimatedGraduation
@@ -47,18 +32,7 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
   })));
   const nextScoreId = useRef(scores.length);
   const [invalidScore, setInvalidScore] = useState<{ id: number; text: string }>();
-  const knownCurriculumYears = getYears(departmentId, admissionYear);
-  const savedCurriculumYear = profile?.curriculumYear;
-  const curriculumOptions = knownCurriculumYears.length ? knownCurriculumYears : [
-    ...new Set(savedCurriculumYear == null ? admissionYears : [...admissionYears, savedCurriculumYear]),
-  ].sort((first, second) => second - first);
   const disabled = busy || stale || departments.length === 0;
-
-  function changeEnrollment(department: string, year: string) {
-    setDepartmentId(department);
-    setAdmissionYear(year);
-    setCurriculumYear(defaultCurriculum(getYears(department, year)));
-  }
 
   function updateScore(id: number, field: keyof Omit<ScoreDraft, "id">, value: string) {
     if (invalidScore?.id === id) setInvalidScore(undefined);
@@ -86,7 +60,6 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
       languageScores.push({ examType, score, grade: grade || null, takenAt: row.takenAt || null });
     }
     const admission = Number(admissionYear);
-    const curriculum = Number(curriculumYear);
     const volunteer = hours === "" ? null : Number(hours);
     const originalScores = profile?.languageScores ?? [];
     const scoresChanged = originalScores.length !== languageScores.length || languageScores.some((row, index) => {
@@ -114,7 +87,6 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
         { studySemester: Number(studySemester) }),
       ...(departmentId !== profile?.departmentId && { departmentId }),
       ...(admission !== profile?.admissionYear && { admissionYear: admission }),
-      ...(curriculum !== profile?.curriculumYear && { curriculumYear: curriculum }),
       ...(volunteer !== (profile?.volunteerHours ?? null) && { volunteerHours: volunteer }),
       ...(scoresChanged && { languageScores }),
     });
@@ -127,7 +99,7 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
           <h2>기본 학적 정보</h2>
           <div className={styles.field}>
             <label htmlFor="sDept">학과</label>
-            <select id="sDept" required value={departmentId} onChange={(event) => changeEnrollment(event.target.value, admissionYear)}>
+            <select id="sDept" required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
               <option value="" disabled>학과 선택</option>
               {departments.map(department => (
                 <option key={department.departmentId} value={department.departmentId}>{department.name}</option>
@@ -136,22 +108,10 @@ export function ProfileForm({ profile, departments, rules, busy, stale, editing,
           </div>
           <div className={styles.field}>
             <label htmlFor="sYear">입학연도</label>
-            <select id="sYear" required value={admissionYear} onChange={(event) => changeEnrollment(departmentId, event.target.value)}>
+            <select id="sYear" required value={admissionYear} onChange={(event) => setAdmissionYear(event.target.value)}>
               <option value="" disabled>입학연도 선택</option>
               {admissionYears.map(year => <option key={year} value={year}>{year}학년도</option>)}
             </select>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="sCurriculum">적용 교육과정 연도</label>
-            <select id="sCurriculum" required value={curriculumYear} disabled={!admissionYear}
-              onChange={(event) => setCurriculumYear(event.target.value)}
-              aria-describedby={admissionYear && !knownCurriculumYears.length ? "curriculum-help" : undefined}>
-              <option value="" disabled>{admissionYear ? "교육과정 연도 선택" : "입학연도를 먼저 선택해 주세요"}</option>
-              {admissionYear && curriculumOptions.map(year => <option key={year} value={year}>{year}학년도</option>)}
-            </select>
-            {admissionYear && !knownCurriculumYears.length && (
-              <span id="curriculum-help" className={styles.hint}>등록된 학교 기준이 없어요. 학교에서 안내받은 연도를 선택해 주세요.</span>
-            )}
           </div>
           <div className={styles.field}>
             <label htmlFor="sStudySemester">현재 학년·학기</label>

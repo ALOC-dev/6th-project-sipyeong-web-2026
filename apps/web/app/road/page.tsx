@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { forecastTargetGpa } from "../grades/grade-utils";
 import {
-  MAX_CR, categoryName, creditsOf, evaluatePlan, evenSplit, formatDate, futureTerms, loadRoadmap,
-  newRoad, offeringFor, prerequisiteNotes, recommend, refreshPlannedCourse, requirementPlans, roundCredits, sky, termKey, useRoads,
+  MAX_CR, additionProblem, categoryName, courseNameKey, creditsOf, evaluatePlan, evenSplit, formatDate, futureTerms, loadRoadmap,
+  newRoad, offeringFor, prerequisiteNotes, recommend, refreshPlannedCourse, requirementPlans, sky, termKey, useRoads, validateRecommendedPlan,
   type CatalogCourse, type PlannedCourse, type Semester,
 } from "../plan-data";
 import { formatGraduationPeriod } from "../profile-model";
@@ -46,6 +46,7 @@ function Road({ userId, profile, roadmap }: {
   const [targets, setTargets] = useState<number[]>([]);
   const [addTerm, setAddTerm] = useState("");
   const [query, setQuery] = useState("");
+  const [addMessage, setAddMessage] = useState("");
   const [filter, setFilter] = useState("");
   const [own, setOwn] = useState({ name: "", credits: "3", category: divisions[0] });
   const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
@@ -100,6 +101,7 @@ function Road({ userId, profile, roadmap }: {
   function save(change: Parameters<typeof update>[0]) {
     if (update(change)) return true;
     toast("이 브라우저에 로드맵을 저장할 수 없습니다");
+    if (sheet === "add") setAddMessage("이 브라우저에 로드맵을 저장할 수 없습니다");
     return false;
   }
 
@@ -112,6 +114,12 @@ function Road({ userId, profile, roadmap }: {
   function generate() {
     if (roads.list.length >= 10) return toast("로드맵은 10개까지 저장할 수 있습니다");
     const recommended = recommend(roadmap, terms, targets, main);
+    const validation = validateRecommendedPlan(roadmap, recommended);
+    if (!validation.ready) {
+      return toast(validation.unresolved.length || !validation.outstanding.length && !validation.issues.length
+        ? "졸업요건 판정에 필요한 자료를 먼저 확인해주세요."
+        : validation.issues[0] ?? `졸업요건을 충족하는 계획을 만들지 못했습니다: ${validation.outstanding.map(rule => rule.title).join(", ")}`);
+    }
     if (!save(next => {
       const road = newRoad(next.list, recommended);
       next.list.unshift(road);
@@ -140,21 +148,19 @@ function Road({ userId, profile, roadmap }: {
     setAddTerm(term);
     setFilter("");
     setQuery("");
+    setAddMessage("");
     setSheet("add");
   }
 
   function add(course: PlannedCourse) {
     if (!activeSemester) return false;
-    if (activeSemester.courses.some(item => course.code ? item.code === course.code : item.name === course.name)) {
-      toast("이미 이 학기 계획에 있습니다");
-      return false;
-    }
-    if (roundCredits(creditsOf(activeSemester.courses) + course.credits) > MAX_CR) {
-      toast(`한 학기에 ${MAX_CR}학점까지 계획할 수 있습니다`);
+    const problem = additionProblem(roadmap, semesters, activeSemester.term, course);
+    if (problem) {
+      setAddMessage(problem);
       return false;
     }
     if (editSemester(activeSemester.term, semester => semester.courses.push({ ...course, manual: true }))) {
-      toast(`${course.name} 과목을 추가했습니다`);
+      setAddMessage(`${course.name} 과목을 추가했습니다`);
       return true;
     }
     return false;
@@ -172,10 +178,10 @@ function Road({ userId, profile, roadmap }: {
     const name = own.name.trim();
     const credits = Number(own.credits);
     if (!name || !Number.isInteger(credits) || credits < 0 || credits > 9 || own.credits === "") {
-      return toast("과목명과 0~9 사이의 정수 학점을 입력해 주세요");
+      return setAddMessage("과목명과 0~9 사이의 정수 학점을 입력해 주세요");
     }
-    if ([...catalog.values(), ...roadmap.enrolled].some(course => course.name === name)) {
-      return toast("등록된 과목은 위 검색 결과에서 추가해 주세요");
+    if ([...catalog.values(), ...roadmap.enrolled].some(course => courseNameKey(course.name) === courseNameKey(name))) {
+      return setAddMessage("등록된 과목은 위 검색 결과에서 추가해 주세요");
     }
     if (add({ code: null, name, credits, category: own.category })) setOwn({ ...own, name: "" });
   }
@@ -207,7 +213,9 @@ function Road({ userId, profile, roadmap }: {
       const offering = offeringFor(course, addTerm, current);
       const notes = prerequisiteNotes(course, evaluation.before.get(addTerm) ?? evaluation.confirmed, evaluation.confirmed);
       const block = activeCodes.has(course.code) ? "이수·수강·계획 중" : !offering ? "개설 자료 없음"
-        : notes.some(note => note.blocked) ? "선수과목 필요" : null;
+        : notes.some(note => note.blocked) ? "선수과목 필요"
+        : additionProblem(roadmap, semesters, addTerm, { code: course.code, name: course.name, category: categoryName(course), credits: offering!.credits })
+          ? "중복 또는 학점 한도" : null;
       return { course, offering, notes, block };
     }).sort((a, b) => Number(!!a.block) - Number(!!b.block)) : [];
 
@@ -331,6 +339,7 @@ function Road({ userId, profile, roadmap }: {
         </div>
       </>}
       {sheet === "add" && activeSemester && <>
+        <p className={s.small}>검색 결과의 ‘추가’를 누르면 {addTerm} 계획에 바로 저장됩니다.</p>
         <input className={s.srch} type="search" placeholder="과목명 또는 교과번호" aria-label="과목 검색" value={query} onChange={event => setQuery(event.target.value)} />
         <div className={s.chips}>{["", ...divisions].map(category =>
           <button key={category} type="button" aria-pressed={filter === category} onClick={() => setFilter(category)}>{category || "전체"}</button>)}</div>
@@ -346,15 +355,21 @@ function Road({ userId, profile, roadmap }: {
           {rows.length > 40 && <p className={s.small}>과목명이나 교과번호로 검색하면 더 많은 과목을 찾을 수 있습니다.</p>}
           {!rows.length && <p className={s.small}>검색 결과가 없습니다.</p>}
         </div>
-        <div className={s.k}>직접 등록</div>
-        <div className={s.own}>
-          <input type="text" placeholder="과목명" aria-label="직접 등록 과목명" value={own.name} onChange={event => setOwn({ ...own, name: event.target.value })} />
-          <input type="number" inputMode="numeric" min={0} max={9} aria-label="직접 등록 학점" value={own.credits} onChange={event => setOwn({ ...own, credits: event.target.value })} />
-          <select aria-label="직접 등록 이수구분" value={own.category} onChange={event => setOwn({ ...own, category: event.target.value })}>
-            {divisions.map(division => <option key={division}>{division}</option>)}
-          </select>
-        </div>
-        <button className={cx(s.cta, s.tint)} type="button" onClick={addOwn}>등록</button>
+        <p className={s.addMessage} role="status" aria-live="polite">{addMessage}</p>
+        <details className={s.manualEntry}>
+          <summary>검색에 없는 과목 직접 입력</summary>
+          <p className={s.small}>직접 입력한 과목은 계획 학점에만 포함되며 졸업요건과 선수과목 판정에는 반영되지 않습니다.</p>
+          <div className={s.manualForm}>
+            <div className={s.own}>
+              <input type="text" placeholder="과목명" aria-label="직접 등록 과목명" value={own.name} onChange={event => setOwn({ ...own, name: event.target.value })} />
+              <input type="number" inputMode="numeric" min={0} max={9} aria-label="직접 등록 학점" value={own.credits} onChange={event => setOwn({ ...own, credits: event.target.value })} />
+              <select aria-label="직접 등록 이수구분" value={own.category} onChange={event => setOwn({ ...own, category: event.target.value })}>
+                {divisions.map(division => <option key={division}>{division}</option>)}
+              </select>
+            </div>
+            <button className={cx(s.cta, s.tint)} type="button" onClick={addOwn}>직접 입력한 과목 추가</button>
+          </div>
+        </details>
       </>}
       {sheet === "saved" && roads.list.map(road => <div className={s.rl} key={road.id}>
         {rename?.id === road.id ? <>
