@@ -10,11 +10,30 @@ const previous = load.extensions['.ts'];
 load.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule(readFileSync(file, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2023 },
 }).outputText, file);
-const { creditsOf, evaluatePlan, recommend, requirementPlans } = load('../app/plan-data.ts');
+const { additionProblem, creditsOf, evaluatePlan, recommend, requirementPlans, validateRecommendedPlan } = load('../app/plan-data.ts');
 if (previous) load.extensions['.ts'] = previous;
 else delete load.extensions['.ts'];
 
 const terms = ['2027-1', '2027-2'];
+
+test('course addition rejects cross-semester custom duplicates and the semester credit cap', () => {
+  const data = roadmap([], []);
+  const custom = { code: null, name: '직접 입력 과목', credits: 3, category: '교양선택' };
+  const plan = [{ term: terms[0], courses: [custom] }, { term: terms[1], courses: [] }];
+  assert.match(additionProblem(data, plan, terms[1], { ...custom, name: '직접입력과목' }), /이미/);
+  assert.equal(additionProblem(data, plan, terms[1], { ...custom, name: '다른 과목' }), null);
+  plan[1].courses = [{ ...custom, name: '큰 과목', credits: 18 }];
+  assert.match(additionProblem(data, plan, terms[1], { ...custom, name: '다른 과목' }), /20학점/);
+});
+
+test('course addition catches a catalog course duplicating a custom name and completed codes', () => {
+  const ref = course(1, 'major_required', 3);
+  const data = roadmap([ref], []);
+  const candidate = { code: ref.code, name: ref.name, credits: 3, category: '전공필수' };
+  const plan = [{ term: terms[0], courses: [{ ...candidate, code: null }] }, { term: terms[1], courses: [] }];
+  assert.match(additionProblem(data, plan, terms[1], candidate), /이미/);
+  assert.match(additionProblem({ ...data, completed: ['1'] }, [{ term: terms[1], courses: [] }], terms[1], candidate), /이미/);
+});
 function course(id, categoryCode, credits, termCode = '10', area = null, prerequisites = []) {
   return { id, code: String(id), name: String(id), categoryCode, area, credits, prerequisites,
     offerings: [{ year: 2026, termCode, credits }] };
@@ -96,4 +115,22 @@ test('updated offering credits invalidate a saved semester that exceeds its cred
   assert.match(evaluation.issues[0], /21학점/);
   assert.equal(evaluation.accepted.length, 0);
   assert.equal(requirementPlans(data, evaluation.accepted)[0].remaining, 20);
+});
+
+test('recommendation approval requires total credits and every numeric requirement with valid offerings', () => {
+  const major = course(1, 'major_required', 3);
+  const science = course(2, 'liberal_elective', 4, '20', '학문기초');
+  const data = roadmap([major, science], [rule('total', 7), rule('major', 3, [major]), rule('science', 4, [science])]);
+  const plan = recommend(data, terms, [3, 4]);
+  assert.equal(validateRecommendedPlan(data, plan).ready, true);
+  const missingScience = plan.map(semester => ({ ...semester, courses: semester.courses.filter(c => c.code !== '2') }));
+  const missing = validateRecommendedPlan(data, missingScience);
+  assert.equal(missing.ready, false);
+  assert.ok(missing.outstanding.some(rule => rule.code === 'science'));
+  assert.equal(validateRecommendedPlan({ ...data, catalog: [major] }, plan).ready, false);
+  assert.equal(validateRecommendedPlan({ ...data, graduation: { requirements: [] } }, []).ready, false);
+  const unknown = { ...data, graduation: { requirements: [...data.graduation.requirements,
+    { ...rule('unknown', 3, [science]), status: 'unknown', projectedValue: null }] } };
+  assert.equal(validateRecommendedPlan(unknown, plan).ready, false);
+  assert.equal(validateRecommendedPlan(unknown, plan).unresolved[0].code, 'unknown');
 });

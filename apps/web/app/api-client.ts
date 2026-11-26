@@ -99,6 +99,7 @@ export interface ExpectedGraduation {
 }
 
 export interface Profile {
+  displayName: string | null;
   departmentId: string;
   admissionYear: number;
   curriculumYear: number | null;
@@ -111,6 +112,7 @@ export interface Profile {
 }
 
 export interface Me {
+  displayName: string;
   userId: string;
   profile: Profile | null;
   profileCompleted: boolean;

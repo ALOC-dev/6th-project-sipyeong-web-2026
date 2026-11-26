@@ -6,9 +6,25 @@ import type { ParsedCourseRecord } from './parsed-course-record';
 const headers = ['순번', '교과구분', '교과번호', '분반', '교과목', '학점', '재수강여부', '재수강년도/학기', '수강신청취소여부'];
 
 export async function parseEnrollmentConfirmation(file: Buffer, term: AcademicTerm): Promise<ParsedCourseRecord[]> {
+  return (await parseEnrollmentDocument(file, term)).records;
+}
+
+export async function parseEnrollmentDocument(file: Buffer, term: AcademicTerm) {
   const semester = validateTerm(term.year, term.termCode);
   const records: ParsedCourseRecord[] = [];
-  for (const table of await extractTables(file, 'pdf')) {
+  const tables = await extractTables(file, 'pdf');
+  const names = new Set<string>();
+  for (const table of tables) {
+    for (const match of (table.text ?? '').matchAll(/(?:^|\s)성\s*명\s*[:：]\s*([^\r\n]+)/gm)) {
+      const candidate = match[1].split(/\s*(?:서울시립대학교|학\s*번\s*[:：]|학부\s*\(과\)|출력사용자\s*[:：])/u)[0].trim().replace(/[ \t]+/g, ' ');
+      if (!candidate || [...candidate].length > 50 || !/^[\p{L}\p{M} .’'·-]+$/u.test(candidate)) {
+        throw new Error('PDF의 성명을 확인할 수 없습니다.');
+      }
+      names.add(candidate);
+    }
+  }
+  if (names.size > 1) throw new Error('PDF에 서로 다른 성명이 있어 확인이 필요합니다.');
+  for (const table of tables) {
     const labels = table.rows.map((row) => row.map(headerLabel));
     const header = labels.findIndex((row) => headers.every((label) => row.includes(label)));
     if (header < 0) continue;
@@ -42,5 +58,5 @@ export async function parseEnrollmentConfirmation(file: Buffer, term: AcademicTe
     }
   }
   if (!records.length) throw new Error('PDF에서 지원하는 수강신청 표를 찾지 못했습니다.');
-  return records;
+  return { records, displayName: names.values().next().value ?? null };
 }

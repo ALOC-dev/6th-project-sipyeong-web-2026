@@ -48,14 +48,15 @@ test('grades persist validity and aggregate all matching records for the signed-
   });
   const transcript = (records) => ({ type: 'transcript', name: 'test.xlsx', hash: 'a'.repeat(64), records });
   const general = row('C-GENERAL', '교양선택', 1, 'B0', 3, true, '20');
-  await academics.save(userId, [transcript([
+  const transcriptRows = [
     row('A-MAJOR', '전공필수', 3, 'A+', 4.5, true),
     row('B-FAIL', '전공선택', 2, 'F0', 0, true),
     general,
     row('D-PASS', '교양필수', 1, 'S', null, true),
     row('E-INVALID', '전공선택', 3, 'A+', 4.5, false),
     row('F-U', '미분류', 1, 'U', null, true, '20'),
-  ]), {
+  ];
+  await academics.save(userId, [transcript(transcriptRows), {
     type: 'enrollment_confirmation', name: 'test.pdf', hash: 'b'.repeat(64),
     records: [{
       ...row('G-ENROLLED', null, 2, null, null, null, '20'), status: 'enrolled',
@@ -127,7 +128,8 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(other.summary.earnedCredits, 3);
   assert.equal(other.summary.gpa, 1);
 
-  await academics.save(userId, [transcript([{ ...general, gradeValid: null }])]);
+  await academics.save(userId, [transcript(transcriptRows.map(row =>
+    row.courseNumber === general.courseNumber ? { ...row, gradeValid: null } : row))]);
   const incomplete = (await (await get('summary')).json()).data;
   assert.equal(incomplete.earnedCredits, null);
   assert.equal(incomplete.gpa, null);
@@ -135,12 +137,13 @@ test('grades persist validity and aggregate all matching records for the signed-
   assert.equal(incomplete.enrolledCredits, 2);
   assert.ok(incomplete.warnings.some(warning => warning.code === 'GRADE_VALIDITY_UNKNOWN'));
   assert.equal((await get(spring + '?cursor=' + cursor)).status, 409);
-  await academics.save(userId, [transcript([general])]);
+  await academics.save(userId, [transcript(transcriptRows)]);
   const restored = (await (await get('summary')).json()).data;
   assert.equal(restored.earnedCredits, 5);
   assert.equal(restored.gpa, 2.75);
 
   await academics.save(userId, [transcript([
+    ...transcriptRows,
     row('SEASON-S', '교양선택', 1, 'A0', 4, true, 'SUMMER'),
     row('SEASON-W', '교양선택', 1, 'A0', 4, true, 'WINTER'),
   ])]);

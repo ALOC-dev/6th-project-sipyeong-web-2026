@@ -22,7 +22,7 @@ export class ProfileController {
   async me(@Req() request: SessionRequest) {
     const { userId } = request.academicSession!;
     const { profile, studentDataVersion } = await this.profiles.find(userId);
-    return envelope({ userId, displayName: '학생', profile, profileCompleted: profile !== null, studentDataVersion });
+    return envelope({ userId, displayName: profile?.displayName ?? '학생', profile, profileCompleted: profile !== null, studentDataVersion });
   }
 
   @Patch('users/me/profile')

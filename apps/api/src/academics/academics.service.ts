@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { AcademicsStore } from './academics.store';
 import { academicFileName } from './academic-file-name';
 import { parseTranscript } from './parsers/transcript.parser';
-import { parseEnrollmentConfirmation } from './parsers/enrollment-confirmation.parser';
+import { parseEnrollmentDocument } from './parsers/enrollment-confirmation.parser';
 import { DocumentExtractorUnavailable } from './parsers/document-extractor';
 import type { ParsedCourseRecord } from './parsers/parsed-course-record';
 import type { AcademicTerm } from '../common/academic-term';
@@ -24,12 +24,17 @@ export class AcademicsService {
 
   async submit(userId: string, grades?: AcademicUpload, timetable?: AcademicUpload, term?: AcademicTerm) {
     if (!grades && !timetable) throw new BadRequestException('업로드할 파일이 없습니다.');
+    let displayName: string | null = null;
     const [transcript, enrollment] = await Promise.all([
       grades ? this.parse('성적표 XLSX', () => parseTranscript(grades.buffer)) : Promise.resolve([]),
-      timetable ? this.parse('수강신청확인서 PDF', () => parseEnrollmentConfirmation(timetable.buffer, term ?? currentSubmissionTerm())) : Promise.resolve([]),
+      timetable ? this.parse('수강신청확인서 PDF', async () => {
+        const document = await parseEnrollmentDocument(timetable.buffer, term ?? currentSubmissionTerm());
+        displayName = document.displayName;
+        return document.records;
+      }) : Promise.resolve([]),
     ]);
     const documents = [];
-    if (timetable) documents.push(this.document(timetable, 'enrollment_confirmation', enrollment));
+    if (timetable) documents.push({ ...this.document(timetable, 'enrollment_confirmation', enrollment), displayName });
     if (grades) documents.push(this.document(grades, 'transcript', transcript));
     return this.store.save(userId, documents);
   }

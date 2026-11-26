@@ -32,11 +32,13 @@ def pdf(data):
     with pdfplumber.open(data) as document:
         if len(document.pages) > MAX_PAGES:
             raise ValueError("Too many PDF pages")
-        return [
-            {"name": str(page.page_number), "rows": table}
-            for page in document.pages
-            for table in page.extract_tables()
-        ]
+        result = []
+        for page in document.pages:
+            tables = page.extract_tables() or [[]]
+            for index, table in enumerate(tables):
+                result.append({"name": str(page.page_number), "rows": table,
+                               "text": page.extract_text() or "" if index == 0 else ""})
+        return result
 
 
 if __name__ == "__main__":

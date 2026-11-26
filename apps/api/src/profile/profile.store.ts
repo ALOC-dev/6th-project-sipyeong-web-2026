@@ -8,6 +8,7 @@ import type { ExpectedGraduation, LanguageScore, ProfilePatch } from './profile.
 import { currentAcademicTerm, graduationAfterEightSemesters, termIndex } from '../common/academic-term';
 
 interface Profile {
+  displayName: string | null;
   departmentId: string;
   admissionYear: number;
   curriculumYear: number | null;
@@ -42,7 +43,7 @@ export class ProfileStore implements OnModuleDestroy {
     }>(
       `SELECT u.student_data_version AS "studentDataVersion",
               CASE WHEN p.user_id IS NOT NULL THEN json_build_object(
-                'departmentId', p.department_id::text, 'admissionYear', p.admission_year,
+                'displayName', p.display_name, 'departmentId', p.department_id::text, 'admissionYear', p.admission_year,
                 'curriculumYear', p.curriculum_year, 'studentNumber', p.student_no,
                 'volunteerHours', p.volunteer_hours, 'revision', p.revision,
                 'expectedGraduation', CASE WHEN p.expected_graduation_year IS NOT NULL THEN json_build_object(
@@ -125,15 +126,17 @@ export class ProfileStore implements OnModuleDestroy {
       }
       await client.query(
         `INSERT INTO student_profiles (user_id, department_id, admission_year, curriculum_year, student_no, volunteer_hours,
-           expected_graduation_year, expected_graduation_term_code, revision)
-         VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 1)
+           expected_graduation_year, expected_graduation_term_code, display_name, revision)
+         VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, 1)
          ON CONFLICT (user_id) DO UPDATE SET department_id = EXCLUDED.department_id,
            admission_year = EXCLUDED.admission_year, curriculum_year = EXCLUDED.curriculum_year,
            student_no = EXCLUDED.student_no, volunteer_hours = EXCLUDED.volunteer_hours,
            expected_graduation_year = EXCLUDED.expected_graduation_year,
            expected_graduation_term_code = EXCLUDED.expected_graduation_term_code,
+           display_name = EXCLUDED.display_name,
            revision = student_profiles.revision + 1, updated_at = now()`,
-        [userId, departmentId, admissionYear, studentNumber, volunteerHours, lastStudyYear, lastStudyTerm],
+        [userId, departmentId, admissionYear, studentNumber, volunteerHours, lastStudyYear, lastStudyTerm,
+          profile?.displayName ?? null],
       );
       if (patch.languageScores !== undefined) {
         await this.replaceLanguageScores(client, userId, patch.languageScores);

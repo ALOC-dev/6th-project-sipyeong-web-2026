@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../academic-nav";
-import { loadAccount } from "../academic-account";
+import { ACCOUNT_UPDATED, loadAccount } from "../academic-account";
 import { TimetableTermSelect, uploadInfo } from "../academic-upload";
 import { api, change, errorMessage, requiresLogin, uploadErrorMessage, uploadFiles, validateFile, type FileKind } from "../api-client";
 import { useApi } from "../use-api";
@@ -210,6 +210,10 @@ export default function MyPage() {
       if (activeUpload === "timetable") setTimetableTerm("");
       setUploadResult(`${data.parsed}과목을 읽고 ${data.saved}건을 저장했습니다.`);
       imports.reload();
+      if (activeUpload === "timetable") {
+        account.reload();
+        window.dispatchEvent(new Event(ACCOUNT_UPDATED));
+      }
       uploadDialogRef.current?.close();
     } catch (error) {
       if (requiresLogin(error)) router.replace("/login?reason=session");
@@ -242,8 +246,8 @@ export default function MyPage() {
         </svg>
         <div className={styles.profileLine}>
           <div>
-            <h2>{department?.name ?? "학적 정보"}</h2>
-            {profile && <p>{profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>}
+            <h2>{me.displayName}</h2>
+            {profile && <p>{department?.name} · {profile.admissionYear}학번 · {profile.curriculumYear ? `${profile.curriculumYear}학년도 교육과정` : "교육과정 미등록"}</p>}
           </div>
           <Link href="/start?edit=1" className={styles.changeButton}>
             {me.profileCompleted ? "학적 정보 수정" : "학적 정보 입력"}

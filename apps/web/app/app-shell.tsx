@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AppIcon, BrandMark } from "./app-icon";
 import type { AppIconName } from "./app-icon";
-import { loadAccount } from "./academic-account";
+import { ACCOUNT_UPDATED, loadAccount } from "./academic-account";
 import { useApi } from "./use-api";
 import styles from "./app-shell.module.css";
 
@@ -44,7 +44,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function SidebarAccount() {
-  const { data } = useApi(loadAccount);
+  const { data, reload } = useApi(loadAccount);
+  useEffect(() => {
+    window.addEventListener(ACCOUNT_UPDATED, reload);
+    return () => window.removeEventListener(ACCOUNT_UPDATED, reload);
+  }, [reload]);
   const profile = data?.me.profile;
   const department = data?.departments.find((item) => item.departmentId === profile?.departmentId);
 
@@ -53,7 +57,8 @@ function SidebarAccount() {
       <Link href="/my#academic-files" className={styles.uploadButton}>성적표 올리기</Link>
       {profile && (
         <Link href="/my" className={styles.profile}>
-          <strong>{department?.name} {profile.admissionYear}학번</strong>
+          <strong>{data?.me.displayName ?? "학생"}</strong>
+          <span>{department?.name} · {profile.admissionYear}학번</span>
         </Link>
       )}
     </div>

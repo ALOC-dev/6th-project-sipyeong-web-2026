@@ -12,7 +12,7 @@ import { getHomeSemesters, loadHome, regularTerm, requirementLabel, requirementP
 import { forecastTargetGpa } from "./grades/grade-utils";
 import { evenSplit, futureTerms, recommend, requirementPlans, type Roadmap } from "./plan-data";
 import { useSemesterTarget } from "./semester-target";
-import { formatGraduationPeriod, getLastStudySemester, getRemainingSemesterCount } from "./profile-model";
+import { formatGraduationPeriod, getRemainingSemesterCount } from "./profile-model";
 import { useApi } from "./use-api";
 import styles from "./home.module.css";
 
@@ -68,7 +68,6 @@ export default function Home() {
   const term = regularTerm(overview.currentTerm.termCode);
   const currentSemester = `${overview.currentTerm.year}-${term}`;
   const graduation = profile.expectedGraduation ?? profile.estimatedGraduation;
-  const lastSemester = graduation && getLastStudySemester(graduation.graduationYear, graduation.graduationMonth);
   const remaining = graduation ? getRemainingSemesterCount(currentSemester, graduation.graduationYear, graduation.graduationMonth) : null;
   const requirements = overview.graduation.requirements.filter(rule =>
     rule.unit === "credits" && rule.status !== "met" && rule.currentValue !== null && rule.requiredValue !== null);
@@ -95,7 +94,7 @@ export default function Home() {
   return <main className={styles.page}>
     <HomeHero student={[department?.name, `${profile.admissionYear}학번`, `${overview.currentTerm.year}년 ${term}학기`].filter(Boolean).join(" · ")}
       admissionYear={profile.admissionYear} graduation={graduation}
-      semesters={getHomeSemesters(overview, profile.admissionYear, lastSemester || undefined, target)}
+      semesters={getHomeSemesters(overview, target)}
       certification={certification} calendar={overview.calendar} studySemester={profile.studySemester} />
 
     <div className={styles.content}>

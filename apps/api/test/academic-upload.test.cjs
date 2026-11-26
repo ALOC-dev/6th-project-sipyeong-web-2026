@@ -57,7 +57,7 @@ test('controller accepts individual files and assigns the term server-side', asy
 test('service parses only supplied documents and saves a combined upload atomically', async (t) => {
   const record = { year: 2026, termCode: '20', courseNumber: '001', credits: 3, gradePoint: null };
   const excelParser = t.mock.method(transcript, 'parseTranscript', async () => [record]);
-  const pdfParser = t.mock.method(enrollment, 'parseEnrollmentConfirmation', async () => [record]);
+  const pdfParser = t.mock.method(enrollment, 'parseEnrollmentDocument', async () => ({ records: [record], displayName: '김민복' }));
   const batches = [];
   const service = new AcademicsService({ save: async (user, docs) => { batches.push(docs); return {}; } });
   const file = { originalname: 'test', buffer: Buffer.from('test') };
@@ -68,6 +68,7 @@ test('service parses only supplied documents and saves a combined upload atomica
   await service.submit('user', undefined, file);
   assert.deepEqual(pdfParser.mock.calls[0].arguments[1], currentSubmissionTerm());
   assert.deepEqual(batches[1].map(doc => doc.type), ['enrollment_confirmation']);
+  assert.equal(batches[1][0].displayName, '김민복');
   assert.equal(excelParser.mock.callCount(), 1);
   await service.submit('user', { ...file, originalname: Buffer.from('성적표.xlsx', 'utf8').toString('latin1') },
     { ...file, originalname: 'café.pdf' }, { year: 2025, termCode: '10' });
@@ -82,5 +83,19 @@ test('service parses only supplied documents and saves a combined upload atomica
   pdfParser.mock.mockImplementation(async () => { throw new DocumentExtractorUnavailable('missing dependency'); });
   await assert.rejects(service.submit('user', undefined, file), error => error.getStatus() === 503);
   assert.equal(batches.length, 3);
+});
+
+test('enrollment reads the student name rather than the output user or professor and rejects conflicting names', async (t) => {
+  const header = ['순번','교과구분','교과번호','분반','교과목','학점','재수강여부','재수강년도/학기','수강신청취소여부'];
+  const rows = [header, [1,'전공선택','71020','01','인공지능',3,'N','/','']];
+  const extraction = t.mock.method(extractor, 'extractTables', async () => [{ name: '1', rows,
+    text: '출력사용자: 김출력\n학번 : 2023920099 성명 : 김민복 서울시립대학교 인공지능융합대학\n담당교수: 김교수' }]);
+  const document = await enrollment.parseEnrollmentDocument(Buffer.from('fixture'), { year: 2026, termCode: '20' });
+  assert.equal(document.displayName, '김민복');
+  assert.equal(document.records.length, 1);
+  extraction.mock.mockImplementation(async () => [{ name: '1', rows, text: '출력사용자: 김출력' }]);
+  assert.equal((await enrollment.parseEnrollmentDocument(Buffer.from('fixture'), { year: 2026, termCode: '20' })).displayName, null);
+  extraction.mock.mockImplementation(async () => [{ name: '1', rows, text: '성명: 김민복\n성명: 다른학생' }]);
+  await assert.rejects(enrollment.parseEnrollmentDocument(Buffer.from('fixture'), { year: 2026, termCode: '20' }), /서로 다른 성명/);
 });
 

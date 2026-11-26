@@ -69,19 +69,12 @@ export function requirementLabel(rule: GraduationRequirement) {
   return requirementStatus[rule.status];
 }
 
-export function getHomeSemesters(overview: HomeOverview, admissionYear: number, lastSemester?: string, target?: number) {
+export function getHomeSemesters(overview: HomeOverview, target?: number) {
   const termOrder: Record<string, number> = { "10": 0, SUMMER: 1, "20": 2, WINTER: 3 };
   const currentKey = `${overview.currentTerm.year}/${overview.currentTerm.termCode}`;
   const records = new Map(overview.semesterGpas.map(row => [`${row.year}/${row.termCode}`, row]));
-  const [lastYear, lastTerm] = (lastSemester ?? "").split("-").map(Number);
-  const currentOrder = overview.currentTerm.year * 2 + regularTerm(overview.currentTerm.termCode) - 1;
-  const finalOrder = Math.max(currentOrder, lastYear ? lastYear * 2 + lastTerm - 1 : currentOrder);
-  const firstOrder = Math.min(admissionYear * 2, currentOrder);
-  for (let order = firstOrder; order <= finalOrder; order++) {
-    const year = Math.floor(order / 2);
-    const termCode = order % 2 === 0 ? "10" : "20";
-    const key = `${year}/${termCode}`;
-    if (!records.has(key)) records.set(key, { year, termCode, gpa: null });
+  if (!records.has(currentKey) && overview.currentSemester.credits > 0 && target !== undefined) {
+    records.set(currentKey, { ...overview.currentTerm, gpa: null });
   }
   return [...records.entries()]
     .sort(([, a], [, b]) => a.year - b.year || (termOrder[a.termCode] ?? 4) - (termOrder[b.termCode] ?? 4))
@@ -92,5 +85,6 @@ export function getHomeSemesters(overview: HomeOverview, admissionYear: number, 
           row.termCode === "SUMMER" ? "여름" : row.termCode === "WINTER" ? "겨울" : row.termCode}`,
       current: id === currentKey,
       gpa: id === currentKey && row.gpa === null && overview.currentSemester.credits > 0 ? target ?? null : row.gpa,
-    }));
+    }))
+    .filter(semester => semester.gpa !== null);
 }

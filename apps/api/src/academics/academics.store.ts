@@ -8,6 +8,7 @@ import type { ParsedCourseRecord } from './parsers/parsed-course-record';
 import { buildValidationSummary } from './validation-summary';
 
 interface AcademicDocument {
+  displayName?: string | null;
   type: ParsedCourseRecord['source']['documentType'];
   name: string;
   hash: string;
@@ -70,6 +71,13 @@ export class AcademicsStore implements OnModuleDestroy {
           saved += await this.saveRecord(client, userId, semesterId, result.rows[0].import_id, record);
         }
         if (document.type === 'enrollment_confirmation') {
+          if (document.displayName) {
+            await client.query(
+              `UPDATE student_profiles SET display_name = $2, revision = revision + 1, updated_at = now()
+               WHERE user_id = $1 AND display_name IS DISTINCT FROM $2`,
+              [userId, document.displayName],
+            );
+          }
           const { year, termCode } = document.records[0];
           await client.query(
             `DELETE FROM student_course_records r
@@ -78,6 +86,16 @@ export class AcademicsStore implements OnModuleDestroy {
                AND i.import_id = r.source_import_id AND i.document_type = 'enrollment_confirmation'
                AND NOT (r.course_number_snapshot = ANY($3::text[]))`,
             [userId, semesters.get(`${year}/${termCode}`), document.records.map(row => row.courseNumber)],
+          );
+        } else if (document.type === 'transcript') {
+          // 전체성적조회 is a complete snapshot, including semesters omitted by the new file.
+          // Upserts above move retained rows to this import; remove only older transcript rows.
+          await client.query(
+            `DELETE FROM student_course_records r
+             USING academic_imports i
+             WHERE r.user_id = $1 AND i.import_id = r.source_import_id
+               AND i.document_type = 'transcript' AND r.source_import_id <> $2`,
+            [userId, result.rows[0].import_id],
           );
         }
       }

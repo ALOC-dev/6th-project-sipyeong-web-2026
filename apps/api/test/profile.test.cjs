@@ -90,6 +90,7 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.equal(details.data.studentDataVersion, 1);
   const { studySemester, estimatedGraduation, ...registeredProfile } = details.data.profile;
   assert.deepEqual(registeredProfile, {
+    displayName: null,
     departmentId: '34', admissionYear: 2023, curriculumYear: 2023, studentNumber: null,
     expectedGraduation: null, volunteerHours: null, languageScores: [], revision: 1,
   });
@@ -149,4 +150,13 @@ test('profile onboarding persists for the authenticated account and validates up
   assert.equal(automaticProfile.curriculumYear, 2024);
   assert.equal((await database.query('SELECT curriculum_year FROM student_profiles')).rows[0].curriculum_year, 2024);
   assert.deepEqual(automaticProfile.expectedGraduation, graduationAfterEightSemesters(currentAcademicTerm(), 4));
+  for (const displayName of ['', '   ', 'a'.repeat(51), '김\n민복', 123, null]) {
+    assert.equal((await patch({ expectedRevision: 6, displayName })).status, 422);
+  }
+  assert.equal((await patch({ expectedRevision: 6, displayName: '김민복' })).status, 422);
+  await database.query('UPDATE student_profiles SET display_name=$1 WHERE user_id=$2', ['김민복', initialBody.data.userId]);
+  assert.equal((await (await me()).json()).data.displayName, '김민복');
+  assert.equal((await patch({ expectedRevision: 6, volunteerHours: 1 })).status, 200);
+  assert.equal((await (await me()).json()).data.profile.displayName, '김민복');
+  assert.equal((await (await me('sipyeong_session=' + anotherToken)).json()).data.displayName, '학생');
 });
